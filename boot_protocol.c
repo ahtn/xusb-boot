@@ -145,8 +145,6 @@ void bootloader_task(void) {
 }
 
 void run_bootloader(void) {
-    bool is_usb_connected = false;
-
     usb_init_descriptors();
     usb_configure_clock();
     usb_init();
@@ -162,19 +160,17 @@ void run_bootloader(void) {
     s_bootloader_state = STATE_WAIT;
     s_flash_empty = false;
     boot_magic = BOOTLOADER_MAGIC_BOOT_RESET;
+
+    // use uint8_t because we only care if the lowest byte changes
+    uint8_t last_sof_count = get_sof_count();
     while(1) {
         bootloader_task();
         usb_poll();
 
-        // Don't start kicking the wdt until we have started receiving SOF packets
-        // This way, if we enter the bootloader when the USB is disconnected,
-        // we will reset to the application code.
-        if (!is_usb_connected) {
-            if (get_sof_count() > 0) {
-                is_usb_connected = true;
-            }
-        } else {
+        uint8_t this_sof_count = get_sof_count();
+        if (last_sof_count != this_sof_count) {
             wdt_kick();
+            last_sof_count = this_sof_count;
         }
     }
 }

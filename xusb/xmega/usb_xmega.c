@@ -223,12 +223,11 @@ static void inline busevent_vect(void) {
     if (USB.INTFLAGSACLR & USB_SOFIF_bm) {
         USB.INTFLAGSACLR = USB_SOFIF_bm;
         sof_count++;
-        // enable DFLL now
-        DFLLRC32M.CTRL = DFLL_ENABLE_bm;
 
-        // don't need SOF interrupts any more
-        USB.INTCTRLA &= ~USB_SOFIE_bm;
-
+        if (!(DFLLRC32M.CTRL & DFLL_ENABLE_bm)) {
+            // enable dfll because SOF packets are being generated
+            DFLLRC32M.CTRL |= DFLL_ENABLE_bm;
+        }
     }
 
     if (USB.INTFLAGSACLR & (USB_CRCIF_bm | USB_UNFIF_bm | USB_OVFIF_bm)) {
@@ -247,12 +246,10 @@ static void inline busevent_vect(void) {
 
         USB.INTFLAGSACLR = USB_SUSPENDIF_bm | USB_RESUMEIF_bm | USB_RSTIF_bm;
 
-        // disable the DFLL now that the USB device is suspended/reset
-        DFLLRC32M.CTRL &= ~DFLL_ENABLE_bm;
-
-        // re-enable the SOF interrupts so that the DFLL can be re-enabled
-        // later.
-        USB.INTCTRLA |= USB_SOFIE_bm;
+        if (DFLLRC32M.CTRL & DFLL_ENABLE_bm) {
+            // disable dfll now because SOF packets are not being generated
+            DFLLRC32M.CTRL &= ~DFLL_ENABLE_bm;
+        }
 
         // re-load the factory calibration values for the RC oscillator
         NVM.CMD = NVM_CMD_READ_CALIB_ROW_gc;
