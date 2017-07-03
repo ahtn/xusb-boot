@@ -2,7 +2,7 @@
 # Copyright 2017 jem@seethis.link
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
-from __future__ import print_function
+from __future__ import print_function, division
 
 import intelhex
 import argparse
@@ -94,7 +94,7 @@ def write_hexfile(device, hexfile, boot_info):
         prog.start()
         boot.write_start(device, start, end) # tell mcu the region to write
         for i in range(start, end, page_size): # handle one page at a time
-            data = bytes(hex_data[i:i+page_size])
+            data = bytearray(hex_data[i:i+page_size])
             boot.write_page(device, data, page_size)
             prog.update(i)
         prog.done()
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             print("bad VID:PID pair: '{}'".format(args.id))
             parser.exit(1)
 
-    if not (vid or pid or args.path or args.listing or args.hex_file):
+    if not (vid or pid or args.path or args.serial or args.listing or args.hex_file):
         parser.print_help()
 
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     boot_info = None
 
     if not args.listing:
-        if (args.path) and not args.listing:
+        if args.path:
             device = easyhid.hid_open_path(args.path)
         elif (vid and pid):
             device = easyhid.hid_open(vid, pid, serial=args.serial)

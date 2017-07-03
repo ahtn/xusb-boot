@@ -109,7 +109,7 @@ def simple_command(device, cmd_id, data=None, receive=True):
         device.write(cmd)
         if receive:
             response = device.read()
-    except:
+    except easyhid.HIDException:
         raise BootloaderException("USB read/write error")
     return response
 

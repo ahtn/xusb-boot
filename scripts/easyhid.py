@@ -46,11 +46,14 @@ hidapi = ffi.dlopen("libhidapi-libusb.so")
 class HIDException(Exception):
     pass
 
+# TODO: Would like to save the device info with the device, but there's not
+# a guaranteed way to get it from hidapi
 class Device:
-    def __init__(self, dev):
+    def __init__(self, dev, info=None):
         if dev == None:
             raise HIDException("None value for HID Device")
         self.dev = dev
+        self.info = info
 
     def __del__(self):
         self.close()
@@ -59,7 +62,7 @@ class Device:
         """
         Writes `bytes` to the hid device.
         """
-        write_data = bytes([report_id]) + data
+        write_data = bytes([report_id]) + bytes(data)
         cdata = ffi.new("const unsigned char[]", write_data)
         num_written = hidapi.hid_write(self.dev, cdata, len(write_data))
         if num_written < 0:
@@ -87,7 +90,7 @@ class Device:
         elif bytes_read == 0:
             return None
         else:
-            return bytes(cdata)
+            return bytearray(cdata)
 
     def set_nonblocking(self, enable_nonblocking):
         if type(enable_nonblocking) != bool:
@@ -130,7 +133,7 @@ class Device:
 
     def _get_prod_string_common(self, hid_fn):
         max_len = 128
-        str_buf = ffi.new("wchar_t[]", str(bytes(max_len)))
+        str_buf = ffi.new("wchar_t[]", bytearray(max_len).decode('utf-8'))
         ret = hid_fn(self.dev, str_buf, max_len)
         if ret < 0:
             raise HIDException(dev.get_error())
@@ -161,7 +164,7 @@ class Device:
         Get the string with the given index from the device
         """
         max_len = 128
-        str_buf = ffi.new("wchar_t[]", str(bytes(max_len)))
+        str_buf = ffi.new("wchar_t[]", str(bytearray(max_len)))
         ret = hidapi.hid_get_indexed_string(self.dev, index, str_buf, max_len)
 
         if ret < 0:
@@ -210,13 +213,13 @@ class DeviceInfo:
             return None
 
         new_val = ffi.string(val)
-        if type(new_val) == bytes:
+        if type(new_val) == bytes or type(new_val) == bytearray:
             return new_val.decode("utf-8")
         else:
             return new_val
 
 
-    def __str__(self):
+    def description(self):
         return \
 """DeviceInfo {{
     path = "{}",
@@ -265,8 +268,7 @@ def hid_open_path(path):
     """
     Opens a device with the given path byte string. Returns a `Device`.
     """
-    if type(path) == str:
-        path = path.encode('utf-8')
+    path = path.encode('utf-8')
     dev = hidapi.hid_open_path(path)
     if dev:
         return Device(dev)
@@ -279,7 +281,7 @@ def hid_open(vendor_id, product_id, serial=None):
     if serial == None:
         serial = ffi.NULL
     else:
-        if type(serial) == bytes:
+        if type(serial) == bytes or type(serial) == bytearray:
             serial = serial.decode('utf-8')
         serial = ffi.new("wchar_t[]", serial)
     dev = hidapi.hid_open(vendor_id, product_id, serial)
