@@ -119,6 +119,13 @@ void reset_to_bootloader(void) {
 }
 ```
 
+## SRAM wiping
+
+At power up the bootloader fills SRAM with the value `0xCC`. This is to done
+to prevent newly loaded firmware from extracting the contents of SRAM of the
+old firmware which might have contained sensitive data like encryption keys.
+It can also aid in debugging.
+
 ## Access SPM instructions from code running in the application section
 
 Currently the bootloader exposes the following functions:
