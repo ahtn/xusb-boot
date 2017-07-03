@@ -73,8 +73,8 @@
 
 /* Define the Start of the application table if not defined in the header files. */
 #ifndef APPTABLE_SECTION_START
-	#error  APPTABLE_SECTION_START must be defined if not defined in header files.
-	//#define APPTABLE_SECTION_START 0x01E000 //APPTABLE address for ATxmega128A1
+    #error  APPTABLE_SECTION_START must be defined if not defined in header files.
+    //#define APPTABLE_SECTION_START 0x01E000 //APPTABLE address for ATxmega128A1
 #endif /*APPTABLE_SECTION_START*/
 
 /*! \brief Read a byte from flash.
@@ -213,9 +213,9 @@ void SP_LoadFlashWord(uint16_t address, uint16_t data);
  *
  *  This function load an entire page from SRAM.
  *
- *	\param data   Pointer to the data to put in buffer.
+ *  \param data   Pointer to the data to put in buffer.
  *
- *	\note The __near keyword limits the pointer to two bytes which means that
+ *  \note The __near keyword limits the pointer to two bytes which means that
  *        only data up to 64K (internal SRAM) can be used.
  */
 void SP_LoadFlashPage(const uint8_t * data);
@@ -224,8 +224,8 @@ void SP_LoadFlashPage(const uint8_t * data);
  *
  *  This function reads an entire flash page and puts it to SRAM.
  *
- *	\param data      Pointer to where to store the data.
- *	\param address   Address to page to read from flash.
+ *  \param data      Pointer to where to store the data.
+ *  \param address   Address to page to read from flash.
  */
 void SP_ReadFlashPage(const uint8_t * data, uint32_t address);
 
