@@ -8,7 +8,7 @@ given in `spm_interface.h`. Released under MIT software license.
 ## Installation instructions and dependencies
 
 ### Dependencies
-To use the python flashing script you python3,
+To use the python flashing script you python,
 [hidapi](http://www.signal11.us/oss/hidapi/) library. The python libraries
 `cffi intelhex` are also needed, use:
 
