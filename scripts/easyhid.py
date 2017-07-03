@@ -62,8 +62,8 @@ class Device:
         """
         Writes `bytes` to the hid device.
         """
-        write_data = bytes([report_id]) + bytes(data)
-        cdata = ffi.new("const unsigned char[]", write_data)
+        write_data = bytearray([report_id]) + bytearray(data)
+        cdata = ffi.new("const unsigned char[]", bytes(write_data))
         num_written = hidapi.hid_write(self.dev, cdata, len(write_data))
         if num_written < 0:
             raise HIDException()

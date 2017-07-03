@@ -7,7 +7,7 @@ from __future__ import print_function, division
 import intelhex
 import argparse
 
-import time, math
+import time, math, sys
 import boot, easyhid
 
 parser = argparse.ArgumentParser(description='Flashing script for xusb-boot bootloader')
@@ -38,7 +38,7 @@ class Progress:
         self.update(0)
 
     def update(self, amount_done):
-        cur_len = math.ceil((amount_done / self.total) * self.bar_size)
+        cur_len = int(math.ceil((amount_done / self.total) * self.bar_size))
         pad_len = self.bar_size - cur_len
         duration = time.time() - self.start_time
         print('\r[{}{}] {:.1f}% ({:.1f}s)'.format(
@@ -46,7 +46,8 @@ class Progress:
             ' '*pad_len,
             (amount_done / self.total) * 100,
             duration
-        ), end="", flush=True)
+        ), end="")
+        sys.stdout.flush()
 
     def done(self):
         self.update(self.total)
@@ -77,7 +78,7 @@ def write_hexfile(device, hexfile, boot_info):
         ihex = intelhex.IntelHex(f)
         ihex.padding = 0xff
         start = 0
-        end = math.ceil(ihex.maxaddr() / page_size) * page_size
+        end = int(math.ceil(ihex.maxaddr() / page_size)) * page_size
         if end > flash_size:
             raise boot.BootloaderException("Hex file to large for flash size. Got {}"
                     " maximum is {}".format(ihex.maxaddr(), flash_size))
@@ -131,7 +132,8 @@ if __name__ == "__main__":
             print("bad VID:PID pair: '{}'".format(args.id))
             parser.exit(1)
 
-    if not (vid or pid or args.path or args.serial or args.listing or args.hex_file):
+    has_specific_device = vid or pid or args.path or args.serial
+    if not (has_specific_device or args.listing or args.hex_file):
         parser.print_help()
 
 
@@ -139,7 +141,7 @@ if __name__ == "__main__":
     device_info = None
     boot_info = None
 
-    if not args.listing:
+    if has_specific_device:
         if args.path:
             device = easyhid.hid_open_path(args.path)
         elif (vid and pid):
