@@ -10,7 +10,7 @@ given in `spm_interface.h`. Released under MIT software license.
 ### Dependencies
 To use the python flashing script you python,
 [hidapi](http://www.signal11.us/oss/hidapi/) library. The python libraries
-`cffi intelhex` are also needed, use:
+`cffi` and `intelhex` are also needed. To install them use:
 
 ```
 pip install cffi intelhex
@@ -50,7 +50,6 @@ To list available devices use
 ./scripts/flash.py -l
 ```
 
-
 For more help use:
 
 ```
@@ -59,8 +58,8 @@ For more help use:
 
 ## Ways to enter the bootloader
 
-On power up the bootloader will run the application code (if present). There
-are 3 ways to enter the bootloader:
+On power up the bootloader will by default run the application code if present.
+There are 3 ways to enter the bootloader:
 
 * Unprogrammed flash
 * Reset button
@@ -68,15 +67,15 @@ are 3 ways to enter the bootloader:
 
 ### Enter bootloader by unprogrammed flash
 
-If the flash word at address 0 is `0xffff`, then the bootloader assumes that
+If the flash at address 0 is `0xffff`, then the bootloader assumes that
 the device is unprogrammed and runs the bootloader code.
 
 ### Enter bootloader with reset button
 
-The bootloader can also be run by pressing the reset button (bring RST low).
-The bootloader will then attempt to establish a USB connection, if it can't
+The bootloader can also be run by pressing the reset button (bring RST pin low).
+The bootloader will then attempt to establish a USB connection. If it can't,
 it will reset and enter the application code if present. If no application code
-is present then it will keep reseting waiting to establish a connection.
+is present then it will keep reseting until it can establish a USB connection.
 
 To determine if a USB connection is present, the bootloader has 2 strategies
 available.
@@ -91,8 +90,9 @@ The IO pin strategy has the advantage of being able to reset instantly when
 no USB connection is present, but it requires an extra IO pin.
 
 If the reset button is pressed again while the bootloader is running then
-it will reset into the application section. This allows you to reset the xmega
-while a USB connection is present by pressing the reset button twice.
+the bootloader will reset into the application section. This allows you to
+reset the xmega while a USB connection is present by pressing the reset button
+twice.
 
 ### Enter the bootloader from software
 
@@ -121,10 +121,14 @@ void reset_to_bootloader(void) {
 
 ## SRAM wiping
 
-At power up the bootloader fills SRAM with the value `0xCC`. This is to done
-to prevent newly loaded firmware from extracting the contents of SRAM of the
-old firmware which might have contained sensitive data like encryption keys.
-It can also aid in debugging.
+At power up the bootloader fills SRAM with the value `0xCC`. This is done
+to prevent newly loaded firmware from extracting SRAM data from the previously
+loaded firmware. It can also serve as a debugging aid.
+
+The only values that will not be filled with `0xCC` is the 4 bytes at
+`BOOTLOADER_FLAG_ADDRESS` which are used to pass data to and from the
+bootloader when the device is reset. The data at this location is still cleared
+before the application code is run, just not necessarily to the value 0xCC.
 
 ## Access SPM instructions from code running in the application section
 
@@ -143,7 +147,7 @@ void write_application_page(uint8_t *data, uint32_t address);
 ```
 
 They are store in a jump table starting in the last 32 bytes of the bootloader.
-Remember to call these functions using there word address if referenced directly
+Remember to call these functions using their word address if referenced directly
 from C. For example
 
 ```
