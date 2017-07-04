@@ -99,6 +99,8 @@ void parse_cmd(uint8_t *data) {
             g_vendor_report_in.len = 64;
         } break;
         case CMD_RESET: {
+            usb_detach();
+            _delay_ms(50);
             software_reset();
         }
     }
