@@ -3,6 +3,7 @@
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
 import cffi
+import ctypes.util
 
 ffi = cffi.FFI()
 ffi.cdef("""
@@ -41,7 +42,11 @@ int hid_get_indexed_string (hid_device *device, int string_index, wchar_t *strin
 const wchar_t* hid_error (hid_device *device);
 """)
 
-hidapi = ffi.dlopen("libhidapi-libusb.so")
+try:
+    hidapi = ffi.dlopen('hidapi-libusb')
+except:
+    hidapi = ffi.dlopen(ctypes.util.find_library('hidapi-libusb'))
+
 
 class HIDException(Exception):
     pass
@@ -51,12 +56,21 @@ class HIDException(Exception):
 class Device:
     def __init__(self, dev, info=None):
         if dev == None:
-            raise HIDException("None value for HID Device")
+            raise TypeError("None value for HID Device")
         self.dev = dev
         self.info = info
 
     def __del__(self):
         self.close()
+
+    def __str__(self):
+        return self.info.description()
+
+    def close(self):
+        """
+        Closes the hid device
+        """
+        hidapi.hid_close(self.dev)
 
     def write(self, data, report_id=0):
         """
@@ -66,7 +80,7 @@ class Device:
         cdata = ffi.new("const unsigned char[]", bytes(write_data))
         num_written = hidapi.hid_write(self.dev, cdata, len(write_data))
         if num_written < 0:
-            raise HIDException()
+            raise HIDException("Failed to write to HID device: " + str(num_written))
         else:
             return num_written
 
@@ -86,7 +100,7 @@ class Device:
             bytes_read = hidapi.hid_read_timeout(self.dev, cdata, len(cdata), timeout)
 
         if bytes_read < 0:
-            raise HIDException(dev.get_error())
+            raise HIDException("Failed to read from HID device: " + str(bytes_read))
         elif bytes_read == 0:
             return None
         else:
@@ -124,12 +138,6 @@ class Device:
             return None
         else:
             return ffi.string(err_str)
-
-    def close(self):
-        """
-        Closes the hid device
-        """
-        hidapi.hid_close(self.dev)
 
     def _get_prod_string_common(self, hid_fn):
         max_len = 128
@@ -218,20 +226,23 @@ class DeviceInfo:
         else:
             return new_val
 
+    def open(self):
+        path = self.path.encode('utf-8')
+        dev = hidapi.hid_open_path(path)
+        if dev:
+            return Device(dev, self)
+        else:
+            None
 
     def description(self):
         return \
-"""DeviceInfo {{
-    path = "{}",
-    vid:pid = {:x}:{:x},
-    manufacturer = "{}",
-    product = "{}",
-    serial = "{}",
-    release_number = {},
-    usage_page = {},
-    usage = {},
-    interface_number = {}
-}}""".format(self.path,
+"""DeviceInfo:
+    {}  | {:x}:{:x} | {} | {} | {}
+    release_number: {}
+    usage_page: {}
+    usage: {}
+    interface_number: {}\
+""".format(self.path,
            self.vendor_id,
            self.product_id,
            self.manufacturer_string,
@@ -242,6 +253,51 @@ class DeviceInfo:
            self.usage,
            self.interface_number
         )
+
+class Enumeration:
+    def __init__(self, vid=0, pid=0):
+        self.device_list = hid_enumerate(vid, pid)
+
+    def show(self):
+        for dev in self.device_list:
+            print(dev.description())
+
+    def all(self):
+        return self.device_list
+
+    def filter(self, vid=None, pid=None, serial=None, interface=None, \
+            path=None, release_number=None, manufacturer=None,
+            product=None, usage=None, usage_page=None):
+        """
+        Attempts to open a device in the HID enumeration list. This function
+        is only away of devices that were present when the object was created.
+        """
+        result = []
+
+        for dev in self.device_list:
+            if vid and dev.vendor_id != vid:
+                continue
+            if pid and dev.product_id != pid:
+                continue
+            if serial and dev.serial_number != serial:
+                continue
+            if interface and dev.interface_number != interface:
+                continue
+            if path and dev.path != path:
+                continue
+            if manufacturer and dev.manufacturer_string != manufacturer:
+                continue
+            if product and dev.product_string != product:
+                continue
+            if release_number and dev.release_number != release_number:
+                continue
+            if usage and dev.usage != usage:
+                continue
+            if usage_page and dev.usage_page != usage_page:
+                continue
+            result.append(dev)
+        return result
+
 
 def hid_enumerate(vendor_id=0, product_id=0):
     """

@@ -46,7 +46,6 @@ def u8(x):
 # The NVM controller for the xmega uses its own custom 24 bit CRC. This CRC is
 # different from the CRC16 and CRC32 used by the its CRC engine.
 def xmega_nvm_crc_word(crc, word, poly=0x80001b):
-    # for n in range(16): # lsb first
     crc_carry = (crc >> 23) & 0x01 # bit that is shifted out of crc
     if (crc_carry):
         crc = u24((crc << 1) ^ poly)
