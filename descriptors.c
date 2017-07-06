@@ -175,7 +175,7 @@ static void write_string_3_byte(uint8_t byte) {
 }
 
 static void write_string_3_hex(uint8_t hex_char) {
-    write_string_3_byte(hexdigit_to_char(hex_char >> 8));
+    write_string_3_byte(hexdigit_to_char(hex_char >> 4));
     write_string_3_byte(hexdigit_to_char(hex_char >> 0));
 }
 
