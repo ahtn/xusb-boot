@@ -1,9 +1,12 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Copyright 2017 jem@seethis.link
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
 import struct
 import easyhid
+import intelhex
+import math
 
 DEFAULT_MANUFACTUER = 'Xusb'
 DEFAULT_PRODUCT = 'Xusb-boot'
@@ -187,4 +190,32 @@ def write_page(device, data, page_size=256):
     for i in range(0, page_size, VENDOR_REPORT_SIZE):
         write_data_packet(device, data[i:i+VENDOR_REPORT_SIZE])
 
+def write_hexfile(device, hexfile):
+    boot_info = get_boot_info(device)
 
+    page_size = boot_info.page_size
+    flash_size = boot_info.flash_size
+    flash_end = boot_info.flash_size-1
+    with open(hexfile) as f:
+        ihex = intelhex.IntelHex(f)
+        ihex.padding = 0xff
+        start = 0
+        end = int(math.ceil(ihex.maxaddr() / page_size)) * page_size
+        if end > flash_size:
+            raise BootloaderException("Hex file to large for flash size. Got {}"
+                    " maximum is {}".format(ihex.maxaddr(), flash_size))
+
+        hex_data = ihex.tobinarray(0, flash_end)
+        hex_crc = xmega_nvm_crc(hex_data)
+
+        erase(device) # must erase before we can write
+        write_start(device, start, end) # tell mcu the region to write
+        for i in range(start, end, page_size): # handle one page at a time
+            data = bytearray(hex_data[i:i+page_size])
+            write_page(device, data, page_size)
+
+        app_crc, boot_crc = crc(device)
+
+        if app_crc != hex_crc:
+            raise BootloaderException("CRC mismatch: 0x{:06x} != 0x{:06x} ".format(app_crc, hex_crc))
+        reset(device)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Copyright 2017 jem@seethis.link
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
@@ -48,37 +49,78 @@ except:
     hidapi = ffi.dlopen(ctypes.util.find_library('hidapi-libusb'))
 
 
+def _c_to_py_str(val):
+    if val == ffi.NULL:
+        return None
+
+    new_val = ffi.string(val)
+    if type(new_val) == bytes or type(new_val) == bytearray:
+        return new_val.decode("utf-8")
+    else:
+        return new_val
+
 class HIDException(Exception):
     pass
 
-# TODO: Would like to save the device info with the device, but there's not
-# a guaranteed way to get it from hidapi
 class Device:
-    def __init__(self, dev, info=None):
-        if dev == None:
-            raise TypeError("None value for HID Device")
-        self.dev = dev
-        self.info = info
+    def __init__(self, cdata):
+        """
+        """
+        if cdata == ffi.NULL:
+            raise TypeError
+        self.path = _c_to_py_str(cdata.path)
+        self.vendor_id = cdata.vendor_id
+        self.product_id = cdata.product_id
+        self.release_number = cdata.release_number
+        self.manufacturer_string = _c_to_py_str(cdata.manufacturer_string)
+        self.product_string = _c_to_py_str(cdata.product_string)
+        self.serial_number = _c_to_py_str(cdata.serial_number)
+        self.usage_page = cdata.usage_page
+        self.usage = cdata.usage
+        self.interface_number = cdata.interface_number
+
+        self._device = None
+        self._is_open = False
 
     def __del__(self):
         self.close()
 
-    def __str__(self):
-        return self.info.description()
+    def open(self):
+        if self._is_open:
+            raise HIDException("Failed to open device: Device already open")
+
+        path = self.path.encode('utf-8')
+        dev = hidapi.hid_open_path(path)
+
+        if dev:
+            self._is_open = True
+            self._device = dev
+        else:
+            raise HIDException("Failed to open device")
+
 
     def close(self):
         """
         Closes the hid device
         """
-        hidapi.hid_close(self.dev)
+        if self._is_open:
+            self._is_open = False
+            hidapi.hid_close(self._device)
+
+    def description(self):
+        return self.info.description()
 
     def write(self, data, report_id=0):
         """
         Writes `bytes` to the hid device.
         """
+
+        if not self._is_open:
+            raise HIDException("Device not open")
+
         write_data = bytearray([report_id]) + bytearray(data)
         cdata = ffi.new("const unsigned char[]", bytes(write_data))
-        num_written = hidapi.hid_write(self.dev, cdata, len(write_data))
+        num_written = hidapi.hid_write(self._device, cdata, len(write_data))
         if num_written < 0:
             raise HIDException("Failed to write to HID device: " + str(num_written))
         else:
@@ -90,14 +132,19 @@ class Device:
         size: number of bytes to read
         timeout: length to wait in milliseconds
         """
+
+        if not self._is_open:
+            raise HIDException("Device not open")
+
         data = [0] * size
         cdata = ffi.new("unsigned char[]", data)
         bytes_read = 0
 
         if timeout == None:
-            bytes_read = hidapi.hid_read(self.dev, cdata, len(cdata))
+            bytes_read = hidapi.hid_read(self._device, cdata, len(cdata))
         else:
-            bytes_read = hidapi.hid_read_timeout(self.dev, cdata, len(cdata), timeout)
+            bytes_read = hidapi.hid_read_timeout(self._device, cdata, len(cdata), timeout)
+
 
         if bytes_read < 0:
             raise HIDException("Failed to read from HID device: " + str(bytes_read))
@@ -107,33 +154,47 @@ class Device:
             return bytearray(cdata)
 
     def set_nonblocking(self, enable_nonblocking):
+        if not self._is_open:
+            raise HIDException("Device not open")
+
         if type(enable_nonblocking) != bool:
             raise TypeError
-        hidapi.hid_set_nonblocking(self.dev, enable_nonblocking)
+        hidapi.hid_set_nonblocking(self._device, enable_nonblocking)
+
+    def is_open(self):
+        return _is_open
 
     def is_connected(self):
-        err = hidapi.hid_read_timeout(self.dev, ffi.NULL, 0, 0)
-        if err == -1:
-            return False
+        """
+        Checks if the USB device is still connected
+        """
+        if self._is_open:
+            err = hidapi.hid_read_timeout(self._device, ffi.NULL, 0, 0)
+            if err == -1:
+                return False
+            else:
+                return True
         else:
-            return True
+            en = Enumeration(vid=self.vendor_id, pid=self.product_id).find(path=self.path)
+            if len(en) == 0:
+                return False
+            else:
+                return True
 
-
-# int hid_set_nonblocking (hid_device *device, int nonblock);
 # int hid_send_feature_report (hid_device *device, const unsigned char *data, size_t length);
     # def send_feature_report(self, data):
     #     cdata = ffi.new("const unsigned char[]", data)
-    #     hidapi.hid_send_feature_report(self.dev, cdata, length)
+    #     hidapi.hid_send_feature_report(self._device, cdata, length)
     #     pass
 
     # def get_feature_report(self, size=64):
     #     hid_data = bytes([report_id]) + bytes(data)
     #     cdata = ffi.new("unsigned char[]", data)
-    #     hidapi.hid_send_feature_report(self.dev, cdata, length)
+    #     hidapi.hid_send_feature_report(self._device, cdata, length)
     #     pass
 
     def get_error(self):
-        err_str = hidapi.hid_error(self.dev)
+        err_str = hidapi.hid_error(self._device)
         if err_str == ffi.NULL:
             return None
         else:
@@ -142,13 +203,15 @@ class Device:
     def _get_prod_string_common(self, hid_fn):
         max_len = 128
         str_buf = ffi.new("wchar_t[]", bytearray(max_len).decode('utf-8'))
-        ret = hid_fn(self.dev, str_buf, max_len)
+        ret = hid_fn(self._device, str_buf, max_len)
         if ret < 0:
-            raise HIDException(dev.get_error())
+            raise HIDException(self._device.get_error())
         else:
             assert(ret == 0)
             return ffi.string(str_buf)
 
+    # Probably don't need these excpet for get_indexed_string, since they won't
+    # change from the values found in the enumeration
     def get_manufacture_string(self):
         """
         Get the manufacturer string of the device from its device descriptor
@@ -173,71 +236,20 @@ class Device:
         """
         max_len = 128
         str_buf = ffi.new("wchar_t[]", str(bytearray(max_len)))
-        ret = hidapi.hid_get_indexed_string(self.dev, index, str_buf, max_len)
+        ret = hidapi.hid_get_indexed_string(self._device, index, str_buf, max_len)
 
         if ret < 0:
-            raise HIDException(dev.get_error())
+            raise HIDException(self._device.get_error())
         elif ret == 0:
             return None
         else:
             return ffi.string(str_buf).encode('utf-8')
 
 
-class DeviceInfo:
-    """
-    Python object that contains the values of the hidapi `hid_device_info` struct.
-    Fields:
-    path -> bytes
-    vendor_id -> int
-    product_id -> int
-    release_number -> int
-    manufacturer_string -> str
-    product_string -> str
-    serial_number -> str
-    usage_page = cdata.usage_page
-    usage = cdata.usage
-    interface_number = cdata.interface_number
-    """
-    # def __init__(self, cdata):
-    def __init__(self, cdata):
-        """
-        Creates a
-        """
-        if cdata == ffi.NULL:
-            raise TypeError
-        self.path = self._string(cdata.path)
-        self.vendor_id = cdata.vendor_id
-        self.product_id = cdata.product_id
-        self.release_number = cdata.release_number
-        self.manufacturer_string = self._string(cdata.manufacturer_string)
-        self.product_string = self._string(cdata.product_string)
-        self.serial_number = self._string(cdata.serial_number)
-        self.usage_page = cdata.usage_page
-        self.usage = cdata.usage
-        self.interface_number = cdata.interface_number
-
-    def _string(self, val):
-        if val == ffi.NULL:
-            return None
-
-        new_val = ffi.string(val)
-        if type(new_val) == bytes or type(new_val) == bytearray:
-            return new_val.decode("utf-8")
-        else:
-            return new_val
-
-    def open(self):
-        path = self.path.encode('utf-8')
-        dev = hidapi.hid_open_path(path)
-        if dev:
-            return Device(dev, self)
-        else:
-            None
-
     def description(self):
         return \
-"""DeviceInfo:
-    {}  | {:x}:{:x} | {} | {} | {}
+"""Device:
+    {} | {:x}:{:x} | {} | {} | {}
     release_number: {}
     usage_page: {}
     usage: {}
@@ -256,16 +268,13 @@ class DeviceInfo:
 
 class Enumeration:
     def __init__(self, vid=0, pid=0):
-        self.device_list = hid_enumerate(vid, pid)
+        self.device_list = _hid_enumerate(vid, pid)
 
     def show(self):
         for dev in self.device_list:
             print(dev.description())
 
-    def all(self):
-        return self.device_list
-
-    def filter(self, vid=None, pid=None, serial=None, interface=None, \
+    def find(self, vid=None, pid=None, serial=None, interface=None, \
             path=None, release_number=None, manufacturer=None,
             product=None, usage=None, usage_page=None):
         """
@@ -299,7 +308,7 @@ class Enumeration:
         return result
 
 
-def hid_enumerate(vendor_id=0, product_id=0):
+def _hid_enumerate(vendor_id=0, product_id=0):
     """
     Enumerates all the hid devices for VID:PID. Returns a list of `DeviceInfo`.
     If vid is 0, then match any vendor id. Similarly, if pid is 0, match any
@@ -312,7 +321,7 @@ def hid_enumerate(vendor_id=0, product_id=0):
 
     # Copy everything into python list
     while cur != ffi.NULL:
-        result.append(DeviceInfo(cur))
+        result.append(Device(cur))
         cur = cur.next
 
     # Free the C memory
@@ -320,65 +329,43 @@ def hid_enumerate(vendor_id=0, product_id=0):
 
     return result
 
-def hid_open_path(path):
-    """
-    Opens a device with the given path byte string. Returns a `Device`.
-    """
-    path = path.encode('utf-8')
-    dev = hidapi.hid_open_path(path)
-    if dev:
-        return Device(dev)
-    else:
-        None
-
-def hid_open(vendor_id, product_id, serial=None):
-    """
-    """
-    if serial == None:
-        serial = ffi.NULL
-    else:
-        if type(serial) == bytes or type(serial) == bytearray:
-            serial = serial.decode('utf-8')
-        serial = ffi.new("wchar_t[]", serial)
-    dev = hidapi.hid_open(vendor_id, product_id, serial)
-    if dev:
-        return Device(dev)
-    else:
-        None
+# def hid_open(vendor_id, product_id, serial=None):
+#     """
+#     """
+#     if serial == None:
+#         serial = ffi.NULL
+#     else:
+#         if type(serial) == bytes or type(serial) == bytearray:
+#             serial = serial.decode('utf-8')
+#         serial = ffi.new("wchar_t[]", serial)
+#     dev = hidapi.hid_open(vendor_id, product_id, serial)
+#     if dev:
+#         return Device(dev)
+#     else:
+#         None
 
 if __name__ == "__main__":
     # Examples
-    from easyhid import hid_enumerate, hid_open, hid_open_path
+    from easyhid import Enumeration
 
-    # enumerate all hid devices with VID:PID = 046D:C52B (Logitech USB Receiver)
-    dev_info_list = hid_enumerate(0x046d, 0xC52b)
+    # Stores an enumertion of all the connected USB devices
+    en = Enumeration()
 
-    # enumerate all hid devices with VID 046D (Logitech)
-    dev_info_list = hid_enumerate(vendor_id=0x046d)
+    # return a list of devices based on the search parameters
+    devices = en.find(manufacturer="Key++", interface=3)
 
-    # enumerate all hid devices with PID C52B
-    dev_info_list = hid_enumerate(product_id=0xc52b)
+    # print a description of the devices found
+    for dev in devices:
+        print(dev.description())
 
-    # enumerate all hid devices that match any VID and PID
-    dev_info_list = hid_enumerate()
+    # open a device
+    dev.open()
 
-    target_device_path = None
-    # Print the list of device info, and look for a specific device
-    for info in dev_info_list:
-        if info.interface_number == 3 and info.vendor_id == 0x6666:
-            target_device_path = info.path
-        print(info)
+    # write some bytes to the device
+    dev.write(bytearray([0, 1, 2, 3]))
 
-    # # Then we can open the HID device from its path
-    # device = hid_open_path(target_device_path)
+    # read some bytes
+    print(dev.read())
 
-    # Alternatively open first device with the specified vid, pid and option
-    # serial number
-    another_device = hid_open(0x6666, 0x1111, serial="0.1234")
-
-    another_device.set_nonblocking(True)
-
-    # write bytes to the corresponding HID endpoint
-    device.write(bytes([0, 1, 2, 3, 4]))
-    # read bytes from the corresponding HID endpoint
-    print(device.read())
+    # close a device
+    dev.close()

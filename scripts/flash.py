@@ -8,7 +8,14 @@ import intelhex
 import argparse
 
 import time, math, sys
-import boot, easyhid
+import boot
+import easyhid
+
+EXIT_NO_ERROR = 0
+EXIT_ARGUMENTS_ERROR = 1
+EXIT_OPEN_ERROR = 2
+EXIT_CRC_ERROR = 5
+
 
 parser = argparse.ArgumentParser(description='Flashing script for xusb-boot bootloader')
 parser.add_argument('-f', dest='hex_file', type=str, action='store', default=None,
@@ -54,23 +61,26 @@ class Progress:
         print()
 
 
-def print_device_info(device, device_info, boot_info):
+def print_device_info(device):
     print("Found device {:x}:{:x}  {} - {}".format(
-            device_info.vendor_id,
-            device_info.product_id,
+            device.vendor_id,
+            device.product_id,
             device.get_manufacture_string(),
             device.get_product_string(),
     ))
     serial_str = device.get_serial_number()
     if serial_str:
         print("Serial: ", serial_str)
-    print("USB port info", device_info.path)
+
+    boot_info = boot.get_boot_info(device)
+    print("USB port info", device.path)
     print("Bootloader Version: {}.{}".format(boot_info.major, boot_info.minor))
     print("MCU: ", boot_info.mcu)
     print("flash size: ", boot_info.flash_size)
     print("page size: ", boot_info.page_size)
 
-def write_hexfile(device, hexfile, boot_info):
+def write_hexfile(device, hexfile):
+    boot_info = boot.get_boot_info(device)
     page_size = boot_info.page_size
     flash_size = boot_info.flash_size
     flash_end = boot_info.flash_size-1
@@ -104,15 +114,14 @@ def write_hexfile(device, hexfile, boot_info):
 
 
         if app_crc != hex_crc:
-            print()
-            print("Write FAILED! CRC mismatch")
-            print("0x{:06x} != 0x{:06x} ".format(app_crc, hex_crc))
-            exit(5)
+            print("Write FAILED! CRC mismatch: 0x{:06x} != 0x{:06x} "
+                  .format(app_crc, hex_crc), file=sys.stderr)
+            exit(EXIT_CRC_ERROR)
         else:
             print("Write successful, CRC: 0x{:06x}".format(app_crc))
             print("Reseting mcu ...")
             boot.reset(device)
-            exit(0)
+            exit(EXIT_NO_ERROR)
 
 
 if __name__ == "__main__":
@@ -129,81 +138,54 @@ if __name__ == "__main__":
             if vid > 0xFFFF or pid > 0xFFFF:
                 raise Exception
         except:
-            print("bad VID:PID pair: '{}'".format(args.id))
-            parser.exit(1)
+            print("bad VID:PID pair: '{}'".format(args.id), file=sys.stderr)
+            parser.exit(EXIT_ARGUMENTS_ERROR)
 
     has_specific_device = vid or pid or args.path or args.serial
     if not (has_specific_device or args.listing or args.hex_file):
         parser.print_help()
 
+    if vid == 0 and pid == 0:
+        vid = boot.DEFAULT_VID
+        pid = boot.DEFAULT_PID
+
 
     device = None
-    device_info = None
     boot_info = None
 
-    if has_specific_device:
-        if args.path:
-            device = easyhid.hid_open_path(args.path)
-        elif (vid and pid):
-            device = easyhid.hid_open(vid, pid, serial=args.serial)
-        elif args.serial:
-            for info in easyhid.hid_enumerate():
-                if info.serial_number == args.serial:
-                    vid = info.vendor_id
-                    pid = info.product_id
-                    device = easyhid.hid_open(vid,pid, serial=args.serial)
-                    break;
-    else:
-        # no information was given about what device to use
-        # So here were scan through the devices and look at only those that
-        # use know default values.
-        #
-        # If we are listing devices, then print each matching device to stdout.
-        # If not, then select the first matching device
-        dev_info_list = easyhid.hid_enumerate(vid, pid)
-        for info in dev_info_list:
-            is_match = info.manufacturer_string == boot.DEFAULT_MANUFACTUER and \
-                    info.product_string == boot.DEFAULT_PRODUCT
-            is_match = is_match or (info.vendor_id == boot.DEFAULT_VID and \
-                    info.product_id == boot.DEFAULT_PID)
-            if is_match:
-                if not args.listing:
-                    # If we have a hexfile,
-                    device = easyhid.hid_open_path(info.path)
-                    device_info = info
-                    break
-                else:
-                    hid_dev = easyhid.hid_open_path(info.path)
-                    boot_info = boot.get_boot_info(hid_dev)
-                    print_device_info(hid_dev, info, boot_info)
-                    print()
+    devices = easyhid.Enumeration().find(
+        vid = vid,
+        pid = pid,
+        path = args.path,
+        serial = args.serial
+    )
 
-    if device_info == None:
-        for info in easyhid.hid_enumerate():
-            if args.path == info.path:
-                device_info = info
-                break
-            if args.serial and info.serial_number != args.serial:
-                continue
-            if vid and (info.vendor_id != vid):
-                continue
-            if pid and (info.product_id != pid):
-                continue
-            device_info = info
-            break;
 
-    # Print the info of the device we wound
-    if device != None:
-        boot_info = boot.get_boot_info(device)
-        print_device_info(device, device_info, boot_info)
+    if args.listing:
+        for dev in devices:
+            dev.open()
+            print_device_info(dev)
+            dev.close()
+            print()
+        exit(EXIT_NO_ERROR)
 
-    # If we're not programming a hex file, then nothing left to do
-    if args.hex_file == None:
-        exit(0)
+    if len(devices) == 0:
+        print("Couldn't find device to program", file=sys.stderr)
+        exit(EXIT_OPEN_ERROR)
 
-    if device == None:
-        # Couldn't find a device to program the hex file to
-        print("Couldn't find any device to program")
-        exit(2)
-    else:
-        write_hexfile(device, args.hex_file, boot_info)
+    if len(devices) > 1:
+        print("Found {} devices, programing the first one: ".format(len(devices)))
+
+    device = devices[0]
+    try:
+        device.open()
+    except:
+        print("Couldn't open the device. Check that device is still connected "
+              " and that you have permission to write to it.")
+        exit(EXIT_OPEN_ERROR)
+
+
+    # Print the info of the device we found
+    print_device_info(device)
+
+    write_hexfile(device, args.hex_file)
