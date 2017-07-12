@@ -348,11 +348,11 @@ if __name__ == "__main__":
     # Examples
     from easyhid import Enumeration
 
-    # Stores an enumertion of all the connected USB devices
+    # Stores an enumertion of all the connected USB HID devices
     en = Enumeration()
 
     # return a list of devices based on the search parameters
-    devices = en.find(manufacturer="Key++", interface=3)
+    devices = en.find(manufacturer="Company", product="Widget", interface=3)
 
     # print a description of the devices found
     for dev in devices:
