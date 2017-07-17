@@ -12,23 +12,74 @@ TARGET = xusb-boot
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
 
+#######################################################################
+#                           config options                            #
+#######################################################################
+
+## This flag disables the VBUS check pin that helps the bootloader quickly
+## detect if it has a USB connection. If it is disabled it will relie on
+## USB SOF packets to detect if a USB connection is present.
+# CFLAGS += -DNO_CHECKPIN
+# CFLAGS += -DCHECK_PIN=PIN1_bm
+# CFLAGS += -DCHECK_PORT=PORTR
+
+## USB vendor and product ID
+# CFLAGS += -DUSB_VID=0x6666
+# CFLAGS += -DUSB_PID=0xB007
+# CFLAGS += -DUSB_DEVICE_VERSION=0x0000  # binary coded decimal value
+
+#######################################################################
+#                         programmer options                          #
+#######################################################################
+
+AVRDUDE_CMD=avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p $(AVRDUDE_PART)
+
+#######################################################################
+#                            fuse settings                            #
+#######################################################################
+
+ # JTAG UID
+FUSE0=00
+# Watchdog settings
+FUSE1=00 # No watch dog
+# b6 = BOOTRST, b5 = TOSCSEL, b1:0 = BODPD
+FUSE2=BD # (reset to bootloader and use sampled brown out detection sleep mode)
+# b4 = RSTDISBL, b3:2 = STARTUPTIME, b1 = WDLOCK, b0 = JTAGEN
+FUSE4=FF
+# b5:4 = BODACT, b3 = EESAVE, b2:0 = BODLEVEL
+FUSE5=DE # sampled BOD @ 1.8V
+
+# TODO: should add appropriate lock bits
+
+#######################################################################
+#                           compiler setup                            #
+#######################################################################
+
 # Object files directory
 OBJ_DIR = obj
 
+# Update path
 XMEGA_PATH=xusb
 VPATH += $(XMEGA_PATH)
 INC_PATHS += \
 
+# Include sub makefiles
 include $(XMEGA_PATH)/makefile
 include $(XMEGA_PATH)/xmega/makefile
 
  # workaround for bad code generation on avr-gcc on linux (version 6.2.0)
 CFLAGS += -fno-jump-tables
 
+# we don't want to use interrupts in the bootloader, so poll the USB IRQ flags
 CFLAGS += -DUSE_USB_POLLING
+
+# Number of bytes to reserve for spm_interface vector table (need 2 bytes for
+# each entry to use `rjmp`)
+SPM_INTERFACE_TABLE_SIZE = 32
+
 CFLAGS += $(INC_PATHS)
 
-# List C source files here. (C dependencies are automatically generated.)
+# List C source files here.
 C_SRC += $(SRC_USB) \
 	descriptors.c \
 	boot_protocol.c \
@@ -51,9 +102,6 @@ EXTRAINCDIRS = $(XMEGA_PATH)/
 
 # Compiler flag to set the C Standard level.
 CSTANDARD = -std=gnu99
-
-# Number of bytes to reserve for spm_interface vector table
-SPM_INTERFACE_TABLE_SIZE = 32
 
 # Place -D or -U options here for C sources
 CDEFS += -DF_CPU=$(F_CPU)UL
@@ -107,7 +155,6 @@ endif
 
 CDEFS += -DMCU_STRING=\"$(MCU_STRING)\"
 
-
 # LD_SCRIPT_DIR = /usr/lib/ldscripts
 LD_SCRIPT_DIR = ./ld-scripts
 
@@ -119,33 +166,12 @@ LDFLAGS += -Wl,--section-start=.spm_interface_table=$(shell python -c "print(hex
 
 all: hex fuse
 
-#######################################################################
-#                         programmer options                          #
-#######################################################################
-
-AVRDUDE_CMD=avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p $(AVRDUDE_PART)
-
 # program a board using an external programmer
 program: $(TARGET).hex
 	$(AVRDUDE_CMD) -U flash:w:$<:i -E noreset
 
 erase:
 	$(AVRDUDE_CMD) -e
-
-#######################################################################
-#                            fuse settings                            #
-#######################################################################
-
- # JTAG UID
-FUSE0=00
-# Watchdog settings
-FUSE1=00 # No watch dog
-# b6 = BOOTRST, b5 = TOSCSEL, b1:0 = BODPD
-FUSE2=BD # (reset to bootloader and use sampled brown out detection sleep mode)
-# b4 = RSTDISBL, b3:2 = STARTUPTIME, b1 = WDLOCK, b0 = JTAGEN
-FUSE4=FF
-# b5:4 = BODACT, b3 = EESAVE, b2:0 = BODLEVEL
-FUSE5=DE # sampled BOD @ 1.8V
 
 program-fuses:
 	$(AVRDUDE_CMD) -U fuse0:w:"0x$(FUSE0)":m

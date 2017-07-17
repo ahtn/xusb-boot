@@ -28,8 +28,6 @@ uint32_t boot_magic __attribute__ ((section (".noinit")));
 // then it means that a reset occured while the bootloader was running.
 #define BOOTMAGIC_BOOTLOADER_RESET_FLAG (1 << 9)
 
-#define NO_CHECKPIN
-
 int main(void) {
     const bool power_on_reset = RST.STATUS & RST_PORF_bm;
     const bool ext_reset = RST.STATUS & RST_EXTRF_bm;
