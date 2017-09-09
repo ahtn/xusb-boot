@@ -75,7 +75,7 @@ CFLAGS += -DUSE_USB_POLLING
 
 # Number of bytes to reserve for spm_interface vector table (need 2 bytes for
 # each entry to use `rjmp`)
-SPM_INTERFACE_TABLE_SIZE = 32
+SPM_INTERFACE_TABLE_SIZE = 48
 
 CFLAGS += $(INC_PATHS)
 

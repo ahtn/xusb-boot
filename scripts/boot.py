@@ -210,6 +210,7 @@ def write_hexfile(device, hexfile):
 
         erase(device) # must erase before we can write
         write_start(device, start, end) # tell mcu the region to write
+
         for i in range(start, end, page_size): # handle one page at a time
             data = bytearray(hex_data[i:i+page_size])
             write_page(device, data, page_size)
@@ -218,4 +219,8 @@ def write_hexfile(device, hexfile):
 
         if app_crc != hex_crc:
             raise BootloaderException("CRC mismatch: 0x{:06x} != 0x{:06x} ".format(app_crc, hex_crc))
-        reset(device)
+
+        try:
+            reset(device)
+        except:
+            pass

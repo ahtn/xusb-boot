@@ -132,42 +132,12 @@ before the application code is run, just not necessarily to the value 0xCC.
 
 ## Access SPM instructions from code running in the application section
 
-Currently the bootloader exposes the following functions:
+To write to the flash of AVR XMEGA it is necessary to use the `spm` instruction
+which can only execute from code in the bootloader section. Several functions
+are provided in a jump table at the end of the bootloader to allow writing
+flash from the application section.  To use these functions include
+`spm_interface.h` from the application code.
 
-```
-// Erase the application page at the given byte address. The address can point
-// anywhere inside the page.
-// SPM interface table offset 0
-void erase_application_page(uint32_t address);
-
-// This function is used to write a page to the given byte address. The address
-// can point anywhere inside the page.
-// SPM interface table offset 1
-void write_application_page(uint8_t *data, uint32_t address);
-```
-
-They are store in a jump table starting in the last 32 bytes of the bootloader.
-Remember to call these functions using their word address if referenced directly
-from C. For example
-
-```
-// How to use the spm interface functions in C from the application section.
-// Example for ATxmega32a4u
-#define BOOTLOADER_END (0x9000)
-#define SPM_FN_TABLE (BOOTLOADER_END - 32)
-#define BYTE_TO_WORD_ADDR(x) ((x) / 2)
-
-// The word addresses of the functions
-#define SPM_ERASE_ADDR (BYTE_TO_WORD_ADDR(SPM_FN_TABLE) + 0)
-#define SPM_WRITE_ADDR (BYTE_TO_WORD_ADDR(SPM_FN_TABLE) + 1)
-
-typedef void (*spm_erase_fn_t)(uint32_t addr);
-typedef void (*spm_write_fn_t)(uint8_t *data, uint32_t addr);
-
-spm_erase_fn_t erase_app_page = (spm_erase_fn_t)(SPM_ERASE_ADDR);
-spm_write_fn_t write_app_page = (spm_write_fn_t)(SPM_WRITE_ADDR);
-
-```
 
 ## Recover reset flags
 
