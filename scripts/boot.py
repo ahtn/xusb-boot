@@ -13,6 +13,7 @@ DEFAULT_PRODUCT = 'Xusb-boot'
 
 DEFAULT_VID = 0x6666
 DEFAULT_PID = 0xB007
+DEFAULT_INTERFACE = 0
 
 VERSION_MAJOR = 1
 VERSION_MINOR = 0
@@ -133,9 +134,9 @@ def get_boot_info(device):
     # } boot_info_t;
     major, minor, mcu, fsize, psize = struct.unpack_from("<BB32sLH", response)
     info = BootInfo()
-    info.major = major
-    info.minor = minor
-    info.mcu = mcu.decode('utf-8')
+    info.version_major = major
+    info.version_minor = minor
+    info.mcu_string = mcu.decode('utf-8').strip('\x00')
     info.flash_size = fsize
     info.page_size = psize
     return info

@@ -74,8 +74,8 @@ def print_device_info(device):
 
     boot_info = boot.get_boot_info(device)
     print("USB port info", device.path)
-    print("Bootloader Version: {}.{}".format(boot_info.major, boot_info.minor))
-    print("MCU: ", boot_info.mcu)
+    print("Bootloader Version: {}.{}".format(boot_info.version_major, boot_info.version_minor))
+    print("MCU: ", boot_info.mcu_string)
     print("flash size: ", boot_info.flash_size)
     print("page size: ", boot_info.page_size)
 
