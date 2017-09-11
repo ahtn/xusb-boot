@@ -9,14 +9,6 @@
 #include "sp_driver.h"
 #include "boot_protocol.h"
 
-#ifndef CHECK_PIN
-#define CHECK_PIN PIN1_bm
-#endif
-
-#ifndef CHECK_PORT
-#define CHECK_PORT PORTR
-#endif
-
 // If the bootloader flag is set to this value before a software reset, then
 // the bootloader will run
 // NOTE: SRAM is cleared except for this value by code in `.init3` section.
