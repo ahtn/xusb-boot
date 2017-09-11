@@ -161,6 +161,7 @@ void run_bootloader(void) {
 
     // use uint8_t because we only care if the lowest byte changes
     uint8_t last_sof_count = get_sof_count();
+    bool usb_connected = false;
     while(1) {
         bootloader_task();
         usb_poll();
@@ -169,6 +170,11 @@ void run_bootloader(void) {
         if (last_sof_count != this_sof_count) {
             wdt_kick();
             last_sof_count = this_sof_count;
+            usb_connected = true;
+        }
+
+        if (usb_connected) {
+            wdt_kick();
         }
     }
 }
