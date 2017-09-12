@@ -47,9 +47,15 @@ FUSE2=BD # (reset to bootloader and use sampled brown out detection sleep mode)
 # b4 = RSTDISBL, b3:2 = STARTUPTIME, b1 = WDLOCK, b0 = JTAGEN
 FUSE4=FF
 # b5:4 = BODACT, b3 = EESAVE, b2:0 = BODLEVEL
-FUSE5=DE # sampled BOD @ 1.8V
+FUSE5=D6 # sampled BOD @ 1.8V, preserve EEPROM on chip erase
+# FUSE5=DE # sampled BOD @ 1.8V, erase EEPROM on chip erase
 
-# TODO: should add appropriate lock bits
+LOCKBITS_DEBUG := BF # RW enabled for external programmer
+LOCKBITS_RELEASE := BC # RW disabled for external programmer
+LOCKBITS = $(LOCKBITS_RELEASE)
+program-lock:
+	avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p x32a4 \
+		-U lock:w:0x$(LOCKBITS):m \
 
 #######################################################################
 #                           compiler setup                            #
