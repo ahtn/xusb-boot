@@ -24,13 +24,13 @@ int main(void) {
     const bool power_on_reset = RST.STATUS & RST_PORF_bm;
     const bool ext_reset = RST.STATUS & RST_EXTRF_bm;
     const bool software_reset = RST.STATUS & RST_SRF_bm;
-#ifdef NO_CHECKPIN
+#if NO_CHECKPIN == 1
     const bool has_vbus = 1;
 #else
-    const bool has_vbus = CHECK_PORT.IN & (1<<CHECK_PIN); // io pins default to input
+    const bool has_vbus = CHECK_PORT.IN & CHECK_PIN; // io pins default to input
 #endif
     const bool has_magic = (boot_magic == BOOTLOADER_MAGIC);
-    const bool bootloader_reset = (boot_magic ==  BOOTLOADER_MAGIC_BOOT_RESET);
+    const bool bootloader_reset = (boot_magic == BOOTLOADER_MAGIC_BOOT_RESET);
 
     // The flags in the RST.STATUS register are not cleared automatically
     // when the mcu is reset. They are only cleared on power on reset, or by

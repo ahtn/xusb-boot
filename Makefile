@@ -53,9 +53,6 @@ FUSE5=D6 # sampled BOD @ 1.8V, preserve EEPROM on chip erase
 LOCKBITS_DEBUG := BF # RW enabled for external programmer
 LOCKBITS_RELEASE := BC # RW disabled for external programmer
 LOCKBITS = $(LOCKBITS_RELEASE)
-program-lock:
-	avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p x32a4 \
-		-U lock:w:0x$(LOCKBITS):m \
 
 #######################################################################
 #                           compiler setup                            #
@@ -172,6 +169,16 @@ LDFLAGS += -Wl,--section-start=.spm_interface_table=$(shell python -c "print(hex
 
 all: hex fuse
 
+xmega_test_board: clean
+xmega_test_board: CFLAGS += -DCHECK_PIN=PIN1_bm
+xmega_test_board: CFLAGS += -DCHECK_PORT=PORTR
+xmega_test_board: hex
+
+keyplus_mini: clean
+keyplus_mini: CFLAGS += -DCHECK_PIN=PIN2_bm
+keyplus_mini: CFLAGS += -DCHECK_PORT=PORTE
+keyplus_mini: hex
+
 # program a board using an external programmer
 program: $(TARGET).hex
 	$(AVRDUDE_CMD) -U flash:w:$<:i -E noreset
@@ -185,6 +192,10 @@ program-fuses:
 	$(AVRDUDE_CMD) -U fuse2:w:"0x$(FUSE2)":m
 	$(AVRDUDE_CMD) -U fuse4:w:"0x$(FUSE4)":m
 	$(AVRDUDE_CMD) -U fuse5:w:"0x$(FUSE5)":m
+
+program-lock:
+	avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p x32a4 \
+		-U lock:w:"0x$(LOCKBITS)":m \
 
 include avr.mk
 
