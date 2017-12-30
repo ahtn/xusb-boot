@@ -25,6 +25,10 @@ USB_ENDPOINTS(1);
 #error "Code assumes that PAGE_SIZE is divisible by USB report len"
 #endif
 
+#ifdef ALPHA_SPLIT_V2
+#include "alpha_split_util.h"
+#endif
+
 uint8_t page_buffer[PAGE_SIZE];
 uint8_t s_bootloader_state;
 static uint8_t s_flash_has_been_erased; // indicates if the flash has been erased
@@ -155,6 +159,13 @@ void run_bootloader(void) {
 
     usb_attach();
 
+#ifdef ALPHA_SPLIT_V2
+    // Enable the USB bus switch and select the left USB port
+    SET_BUS_SWITCH(I2C_OE_LEFT, 0);
+    SET_BUS_SWITCH(USB_OE, 1);
+    init_bus_switch_toggler();
+#endif
+
     s_bootloader_state = STATE_WAIT;
     s_flash_empty = false;
     boot_magic = BOOTLOADER_MAGIC_BOOT_RESET;
@@ -176,6 +187,11 @@ void run_bootloader(void) {
         if (usb_connected) {
             wdt_kick();
         }
+#ifdef ALPHA_SPLIT_V2
+        if (!usb_connected) {
+            bus_switch_toggle_task();
+        }
+#endif
     }
 }
 

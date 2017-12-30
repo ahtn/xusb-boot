@@ -32,6 +32,8 @@ int main(void) {
     const bool has_magic = (boot_magic == BOOTLOADER_MAGIC);
     const bool bootloader_reset = (boot_magic == BOOTLOADER_MAGIC_BOOT_RESET);
 
+    bootloader_extra_setup();
+
     // The flags in the RST.STATUS register are not cleared automatically
     // when the mcu is reset. They are only cleared on power on reset, or by
     // manually clearing the flags

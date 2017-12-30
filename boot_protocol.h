@@ -57,3 +57,4 @@ typedef struct {
 
 
 void run_bootloader(void);
+void bootloader_extra_setup(void);

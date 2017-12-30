@@ -1,13 +1,9 @@
 # Copyright 2017 jem@seethis.link
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
-MCU = atxmega32a4u
 ARCH = XMEGA
 F_CPU = 32000000
 F_USB = 48000000
-
-# Target file name (without extension).
-TARGET = xusb-boot
 
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
@@ -28,11 +24,26 @@ FORMAT = ihex
 # CFLAGS += -DUSB_PID=0xB007
 # CFLAGS += -DUSB_DEVICE_VERSION=0x0000  # binary coded decimal value
 
+ifndef BOARD
+  include config_default.mk
+  TARGET = xusb-boot
+else ifeq ($(BOARD), alpha_split)
+  include config_$(BOARD).mk
+  TARGET = xusb-boot-$(BOARD)
+else
+  $(error "Unknown board $(BOARD)")
+endif
+
+ifndef MCU
+  MCU = atxmega32a4u
+endif
+
 #######################################################################
 #                         programmer options                          #
 #######################################################################
 
-AVRDUDE_CMD=avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p $(AVRDUDE_PART)
+# AVRDUDE_CMD=avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p $(AVRDUDE_PART)
+AVRDUDE_CMD=avrdude -p $(AVRDUDE_PART) -c avrispmkII
 
 #######################################################################
 #                            fuse settings                            #
