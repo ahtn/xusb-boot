@@ -108,6 +108,7 @@ all: hex fuse
 
 include avr-makefile/avr.mk
 include avr-makefile/avr-xmega.mk
+include avr-makefile/avr-program.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
