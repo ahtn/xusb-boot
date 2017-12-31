@@ -27,6 +27,7 @@
 #include "xmega/usb_xmega.h"
 #include "xmega/usb_xmega_internal.h"
 
+static uint8_t usb_connection_established;
 
 void usb_init() {
     NVM.CMD  = NVM_CMD_READ_CALIB_ROW_gc;
@@ -34,6 +35,8 @@ void usb_init() {
     NVM.CMD  = NVM_CMD_READ_CALIB_ROW_gc;
     USB.CAL1 = pgm_read_byte(offsetof(NVM_PROD_SIGNATURES_t, USBCAL1));
     NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+
+    usb_connection_established = 0;
 
     usb_reset();
 }
@@ -53,6 +56,10 @@ void usb_reset() {
     USB.CTRLA = USB_ENABLE_bm | USB_SPEED_bm | (usb_num_endpoints+1);
 
     usb_cb_reset();
+}
+
+bool has_usb_connection(void) {
+    return usb_connection_established;
 }
 
 void usb_set_address(uint8_t addr) {
@@ -227,6 +234,7 @@ static void inline busevent_vect(void) {
         if (!(DFLLRC32M.CTRL & DFLL_ENABLE_bm)) {
             // enable dfll because SOF packets are being generated
             DFLLRC32M.CTRL |= DFLL_ENABLE_bm;
+            usb_connection_established = 1;
         }
     }
 
@@ -249,6 +257,7 @@ static void inline busevent_vect(void) {
         if (DFLLRC32M.CTRL & DFLL_ENABLE_bm) {
             // disable dfll now because SOF packets are not being generated
             DFLLRC32M.CTRL &= ~DFLL_ENABLE_bm;
+            usb_connection_established = 0;
         }
 
         // re-load the factory calibration values for the RC oscillator

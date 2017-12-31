@@ -26,7 +26,7 @@ USB_ENDPOINTS(1);
 #endif
 
 #ifdef ALPHA_SPLIT_V2
-#include "alpha_split_util.h"
+#include "boards/alpha_split/alpha_split_util.h"
 #endif
 
 uint8_t page_buffer[PAGE_SIZE];
@@ -61,6 +61,7 @@ void parse_cmd(uint8_t *data) {
             if (!s_flash_empty) {
                 SP_WaitForSPM();
                 SP_EraseApplicationSection();
+                SP_WaitForSPM();
                 s_flash_empty = true;
                 s_flash_has_been_erased = true;
             }
@@ -168,6 +169,7 @@ void run_bootloader(void) {
 
     s_bootloader_state = STATE_WAIT;
     s_flash_empty = false;
+    s_flash_has_been_erased = false;
     boot_magic = BOOTLOADER_MAGIC_BOOT_RESET;
 
     // use uint8_t because we only care if the lowest byte changes
@@ -187,6 +189,7 @@ void run_bootloader(void) {
         if (usb_connected) {
             wdt_kick();
         }
+
 #ifdef ALPHA_SPLIT_V2
         if (!usb_connected) {
             bus_switch_toggle_task();

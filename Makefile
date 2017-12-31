@@ -1,6 +1,8 @@
 # Copyright 2017 jem@seethis.link
 # Licensed under the MIT license (http://opensource.org/licenses/MIT)
 
+TARGET_BASE_NAME = xusb-boot
+
 ARCH = XMEGA
 F_CPU = 32000000
 F_USB = 48000000
@@ -9,27 +11,18 @@ F_USB = 48000000
 FORMAT = ihex
 
 #######################################################################
-#                           config options                            #
+#                        board config options                         #
 #######################################################################
 
-## This flag disables the VBUS check pin that helps the bootloader quickly
-## detect if it has a USB connection. If it is disabled it will relie on
-## USB SOF packets to detect if a USB connection is present.
-# CFLAGS += -DNO_CHECKPIN
-# CFLAGS += -DCHECK_PIN=PIN1_bm
-# CFLAGS += -DCHECK_PORT=PORTR
-
-## USB vendor and product ID
-# CFLAGS += -DUSB_VID=0x6666
-# CFLAGS += -DUSB_PID=0xB007
-# CFLAGS += -DUSB_DEVICE_VERSION=0x0000  # binary coded decimal value
+# Note: Specific board configs are stored in the `boards` directory.
 
 ifndef BOARD
-  include config_default.mk
-  TARGET = xusb-boot
-else ifeq ($(BOARD), alpha_split)
-  include config_$(BOARD).mk
-  TARGET = xusb-boot-$(BOARD)
+  BOARD = default
+endif
+
+ifneq ("$(wildcard boards/$(BOARD)/config.mk)","")
+  include boards/$(BOARD)/config.mk
+  TARGET = $(TARGET_BASE_NAME)-$(BOARD)-$(MCU)
 else
   $(error "Unknown board $(BOARD)")
 endif
@@ -37,6 +30,14 @@ endif
 ifndef MCU
   MCU = atxmega32a4u
 endif
+
+# Object files directory
+OBJ_DIR = build/$(BOARD)-$(MCU)/obj
+
+# Director were output files are placed
+BUILD_DIR = build/$(BOARD)-$(MCU)
+
+BOARD_DIR = boards
 
 #######################################################################
 #                         programmer options                          #
@@ -68,9 +69,6 @@ LOCKBITS = $(LOCKBITS_RELEASE)
 #######################################################################
 #                           compiler setup                            #
 #######################################################################
-
-# Object files directory
-OBJ_DIR = obj
 
 # Update path
 XMEGA_PATH=xusb
@@ -172,45 +170,37 @@ CDEFS += -DMCU_STRING=\"$(MCU_STRING)\"
 # LD_SCRIPT_DIR = /usr/lib/ldscripts
 LD_SCRIPT_DIR = ./ld-scripts
 
+SPM_INTERFACE_TABLE_POS = $(shell python -c \
+    "print(hex($(BOOT_SECTION_START)+$(BOOTLOADER_SIZE)-$(SPM_INTERFACE_TABLE_SIZE)))")
 LDFLAGS += -T $(LD_SCRIPT_DIR)/$(LD_SCRIPT)
-
 LDFLAGS += -Wl,--section-start=.text=$(BOOT_SECTION_START)
 LDFLAGS += -Wl,--section-start=.noinit=0x802400 # magic flag for bootloader entry
-LDFLAGS += -Wl,--section-start=.spm_interface_table=$(shell python -c "print(hex($(BOOT_SECTION_START)+$(BOOTLOADER_SIZE)-$(SPM_INTERFACE_TABLE_SIZE)))")
+LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 
 all: hex fuse
 
-xmega_test_board: clean
-xmega_test_board: CFLAGS += -DCHECK_PIN=PIN1_bm
-xmega_test_board: CFLAGS += -DCHECK_PORT=PORTR
-xmega_test_board: hex
-
-keyplus_mini: clean
-keyplus_mini: CFLAGS += -DCHECK_PIN=PIN2_bm
-keyplus_mini: CFLAGS += -DCHECK_PORT=PORTE
-keyplus_mini: hex
-
 # program a board using an external programmer
-program: $(TARGET).hex
-	$(AVRDUDE_CMD) -U flash:w:$<:i -E noreset
+program: $(TARGET_HEX)
+	$(AVRDUDE_CMD) -U flash:w:$<:i
+	# $(AVRDUDE_CMD) -U flash:w:$<:i -E noreset
 
 erase:
 	$(AVRDUDE_CMD) -e
 
 program-fuses:
-	$(AVRDUDE_CMD) -U fuse0:w:"0x$(FUSE0)":m
-	$(AVRDUDE_CMD) -U fuse1:w:"0x$(FUSE1)":m
-	$(AVRDUDE_CMD) -U fuse2:w:"0x$(FUSE2)":m
-	$(AVRDUDE_CMD) -U fuse4:w:"0x$(FUSE4)":m
-	$(AVRDUDE_CMD) -U fuse5:w:"0x$(FUSE5)":m
+	$(AVRDUDE_CMD) \
+		-U fuse0:w:0x$(FUSE0):m \
+		-U fuse1:w:0x$(FUSE1):m \
+		-U fuse2:w:0x$(FUSE2):m \
+		-U fuse4:w:0x$(FUSE4):m \
+		-U fuse5:w:0x$(FUSE5):m
+
 
 program-lock:
-	avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p x32a4 \
-		-U lock:w:"0x$(LOCKBITS)":m \
+	$(AVRDUDE_CMD) -U lock:w:"0x$(LOCKBITS)":m
 
-include avr.mk
+include avr-makefile/avr.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
 build elf hex eep lss sym coff extcoff doxygen clean program-fuses \
-

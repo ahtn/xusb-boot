@@ -27,6 +27,8 @@ parser.add_argument('-s', dest='serial', type=str, default=None,
                     help='Serial number of the USB device to flash.')
 parser.add_argument('-l', dest='listing', const=True, default=False, action='store_const',
                     help='If this flag is given, list the available devices')
+parser.add_argument('-e', dest='erase', const=True, default=False, action='store_const',
+                    help='Erase the flash.')
 parser.add_argument('-p', dest='path', type=str, default=None, action='store',
                     help='The device port path. This value can be used to identify a '
                     ' device if it does not have a serial number. This value '
@@ -78,6 +80,11 @@ def print_device_info(device):
     print("MCU: ", boot_info.mcu_string)
     print("flash size: ", boot_info.flash_size)
     print("page size: ", boot_info.page_size)
+
+def erase(device):
+    print("\nErasing device...")
+    boot.erase(device) # must erase before we can write
+    print("Done.")
 
 def write_hexfile(device, hexfile):
     boot_info = boot.get_boot_info(device)
@@ -188,4 +195,10 @@ if __name__ == "__main__":
     # Print the info of the device we found
     print_device_info(device)
 
-    write_hexfile(device, args.hex_file)
+    if args.erase:
+        if not has_specific_device:
+            print("Error: Need to choose a specific device for erase command", file=sys.stderr)
+        else:
+            erase(device)
+    elif args.hex_file:
+        write_hexfile(device, args.hex_file)

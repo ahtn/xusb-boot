@@ -9,6 +9,11 @@
 #include "sp_driver.h"
 #include "boot_protocol.h"
 
+#ifdef ALPHA_SPLIT_V2
+#include "boards/alpha_split/alpha_split_util.h"
+#endif
+
+
 // If the bootloader flag is set to this value before a software reset, then
 // the bootloader will run
 // NOTE: SRAM is cleared except for this value by code in `.init3` section.
@@ -32,7 +37,9 @@ int main(void) {
     const bool has_magic = (boot_magic == BOOTLOADER_MAGIC);
     const bool bootloader_reset = (boot_magic == BOOTLOADER_MAGIC_BOOT_RESET);
 
-    bootloader_extra_setup();
+#ifdef ALPHA_SPLIT_V2
+    init_bus_switches();
+#endif
 
     // The flags in the RST.STATUS register are not cleared automatically
     // when the mcu is reset. They are only cleared on power on reset, or by

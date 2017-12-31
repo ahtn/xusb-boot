@@ -22,11 +22,7 @@ void init_bus_switches(void) {
 }
 #endif
 
-void bootloader_extra_setup(void) {
-    init_bus_switches();
-}
-
-// 10_000 -> approx .300ms
+// 10_000 -> approx 300ms
 #define USB_SWITCHING_TIME 10000
 
 // Timer used to check when trying to connect to a USB port
