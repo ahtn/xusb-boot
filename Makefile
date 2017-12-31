@@ -10,34 +10,10 @@ F_USB = 48000000
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
 
-#######################################################################
-#                        board config options                         #
-#######################################################################
-
-# Note: Specific board configs are stored in the `boards` directory.
-
-ifndef BOARD
-  BOARD = default
-endif
-
-ifneq ("$(wildcard boards/$(BOARD)/config.mk)","")
-  include boards/$(BOARD)/config.mk
-  TARGET = $(TARGET_BASE_NAME)-$(BOARD)-$(MCU)
-else
-  $(error "Unknown board $(BOARD)")
-endif
-
-ifndef MCU
-  MCU = atxmega32a4u
-endif
-
-# Object files directory
-OBJ_DIR = build/$(BOARD)-$(MCU)/obj
-
-# Director were output files are placed
-BUILD_DIR = build/$(BOARD)-$(MCU)
-
 BOARD_DIR = boards
+BUILD_DIR = build
+
+include avr-makefile/boards.mk
 
 #######################################################################
 #                         programmer options                          #
@@ -115,57 +91,8 @@ EXTRAINCDIRS = $(XMEGA_PATH)/
 # Compiler flag to set the C Standard level.
 CSTANDARD = -std=gnu99
 
-# Place -D or -U options here for C sources
-CDEFS += -DF_CPU=$(F_CPU)UL
-CDEFS += -DF_USB=$(F_USB)UL
-CDEFS += -DBOARD=BOARD_$(BOARD)
-CDEFS += -DARCH=ARCH_$(ARCH)
-CDEFS += -D __$(DEVICE)__
 CDEFS += $(USB_OPTS)
-
-# Place -D or -U options here for ASM sources
-ADEFS  = -DF_CPU=$(F_CPU)
-ADEFS += -DF_USB=$(F_USB)UL
 ADEFS += $(USB_OPTS)
-ADEFS += -DBOARD=BOARD_$(BOARD)
-ADEFS += -DARCH=ARCH_$(ARCH)
-ADEFS += -D __$(DEVICE)__
-
-# see avr-gcc for information on avrxmega2, avrxmega4, etc
-# NOTE: haven't tested on all these chips
-ifeq ($(MCU), atxmega16a4u)
-  BOOT_SECTION_START = 0x004000
-  BOOTLOADER_SIZE = 0x1000
-  AVRDUDE_PART = x16a4
-  LD_SCRIPT = avrxmega2.xn
-  MCU_STRING = "ATxmega16a4u"
-else ifeq ($(MCU), atxmega32a4u)
-  BOOT_SECTION_START = 0x008000
-  BOOTLOADER_SIZE = 0x1000
-  AVRDUDE_PART = x32a4
-  LD_SCRIPT = avrxmega2.xn
-  MCU_STRING = "ATxmega32a4u"
-else ifeq ($(MCU), atxmega64a4u)
-  BOOT_SECTION_START = 0x010000
-  BOOTLOADER_SIZE = 0x1000
-  AVRDUDE_PART = x64a4
-  LD_SCRIPT = avrxmega4.xn
-  MCU_STRING = "ATxmega64a4u"
-else ifeq ($(MCU), atxmega128a4u)
-  BOOT_SECTION_START = 0x020000
-  BOOTLOADER_SIZE = 0x2000
-  AVRDUDE_PART = x128a4
-  MCU_STRING = "ATxmega128a4u"
-  # NOTE: avr-gcc says atxmega128a4u -> avrxmega7, but it also says avrxmega7
-  # is for devices with more than 128KiB program memory and more than 64KiB
-  # of RAM. So avrxmega7 is probably used with external RAM
-  # LD_SCRIPT = avrxmega7.xn
-  LD_SCRIPT = avrxmega6.xn
-else
-  $(error No part matches MCU='$(MCU)')
-endif
-
-CDEFS += -DMCU_STRING=\"$(MCU_STRING)\"
 
 # LD_SCRIPT_DIR = /usr/lib/ldscripts
 LD_SCRIPT_DIR = ./ld-scripts
@@ -179,27 +106,8 @@ LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 
 all: hex fuse
 
-# program a board using an external programmer
-program: $(TARGET_HEX)
-	$(AVRDUDE_CMD) -U flash:w:$<:i
-	# $(AVRDUDE_CMD) -U flash:w:$<:i -E noreset
-
-erase:
-	$(AVRDUDE_CMD) -e
-
-program-fuses:
-	$(AVRDUDE_CMD) \
-		-U fuse0:w:0x$(FUSE0):m \
-		-U fuse1:w:0x$(FUSE1):m \
-		-U fuse2:w:0x$(FUSE2):m \
-		-U fuse4:w:0x$(FUSE4):m \
-		-U fuse5:w:0x$(FUSE5):m
-
-
-program-lock:
-	$(AVRDUDE_CMD) -U lock:w:"0x$(LOCKBITS)":m
-
 include avr-makefile/avr.mk
+include avr-makefile/avr-xmega.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
