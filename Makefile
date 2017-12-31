@@ -104,7 +104,7 @@ LDFLAGS += -Wl,--section-start=.text=$(BOOT_SECTION_START)
 LDFLAGS += -Wl,--section-start=.noinit=0x802400 # magic flag for bootloader entry
 LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 
-all: hex fuse
+all: fuse hex
 
 include avr-makefile/avr.mk
 include avr-makefile/avr-xmega.mk

@@ -29,6 +29,8 @@ parser.add_argument('-l', dest='listing', const=True, default=False, action='sto
                     help='If this flag is given, list the available devices')
 parser.add_argument('-e', dest='erase', const=True, default=False, action='store_const',
                     help='Erase the flash.')
+parser.add_argument('-r', dest='reset', const=True, default=False, action='store_const',
+                    help='Reset the mcu')
 parser.add_argument('-p', dest='path', type=str, default=None, action='store',
                     help='The device port path. This value can be used to identify a '
                     ' device if it does not have a serial number. This value '
@@ -81,8 +83,13 @@ def print_device_info(device):
     print("flash size: ", boot_info.flash_size)
     print("page size: ", boot_info.page_size)
 
-def erase(device):
+def cmd_erase(device):
     print("\nErasing device...")
+    boot.erase(device) # must erase before we can write
+    print("Done.")
+
+def cmd_reset(device):
+    print("\Reseting device...")
     boot.erase(device) # must erase before we can write
     print("Done.")
 
@@ -91,6 +98,7 @@ def write_hexfile(device, hexfile):
     page_size = boot_info.page_size
     flash_size = boot_info.flash_size
     flash_end = boot_info.flash_size-1
+    print(boot_info)
     with open(hexfile) as f:
         ihex = intelhex.IntelHex(f)
         ihex.padding = 0xff
@@ -199,6 +207,8 @@ if __name__ == "__main__":
         if not has_specific_device:
             print("Error: Need to choose a specific device for erase command", file=sys.stderr)
         else:
-            erase(device)
+            cmd_erase(device)
+    elif args.reset:
+        cmd_reset(device)
     elif args.hex_file:
         write_hexfile(device, args.hex_file)

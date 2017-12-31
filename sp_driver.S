@@ -314,6 +314,15 @@ SP_WriteUserSignatureRow:
 
 SP_EraseApplicationSection:
 	in	r19, RAMPZ                 ; Save RAMPZ, which is restored in SP_CommonSPM.
+	; NOTE: datasheet says RAMPZ must point to anywhere inside the
+	; application section. So we should clear RAMPZ on devices with >64kB
+	; flash.
+	; Note: that the bootloader in xmega devices also counts towards the
+	; flash space, so for example the ATxmega64a4u has 64kB + 4kB = 68kB
+	; of flash and we need to clear the RAMPZ register
+#if BOOT_SECTION_END > (1<<16)
+	out	RAMPZ, 0
+#endif
 	ldi	r20, NVM_CMD_ERASE_APP_gc  ; Prepare NVM command in R20.
 	jmp	SP_CommonSPM               ; Jump to common SPM code.
 

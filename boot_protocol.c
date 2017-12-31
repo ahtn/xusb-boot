@@ -67,6 +67,7 @@ void parse_cmd(uint8_t *data) {
             }
             send_response(OKAY);
         } break;
+        // Write/Read operations are only unlocked after the flash has been erased
         case CMD_WRITE: {
             if (s_flash_has_been_erased) {
                 memcpy(&s_write_state, data+1, sizeof(write_state_t));
