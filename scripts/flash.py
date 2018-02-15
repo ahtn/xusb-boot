@@ -14,6 +14,7 @@ import easyhid
 EXIT_NO_ERROR = 0
 EXIT_ARGUMENTS_ERROR = 1
 EXIT_OPEN_ERROR = 2
+EXIT_SELECT_ERROR = 3
 EXIT_CRC_ERROR = 5
 
 
@@ -31,6 +32,8 @@ parser.add_argument('-e', dest='erase', const=True, default=False, action='store
                     help='Erase the flash.')
 parser.add_argument('-r', dest='reset', const=True, default=False, action='store_const',
                     help='Reset the mcu')
+parser.add_argument('-mcu', default=None, action='store',
+                    help='Check that the bootloader mcu part number matches')
 parser.add_argument('-p', dest='path', type=str, default=None, action='store',
                     help='The device port path. This value can be used to identify a '
                     ' device if it does not have a serial number. This value '
@@ -83,6 +86,8 @@ def print_device_info(device):
     print("flash size: ", boot_info.flash_size)
     print("page size: ", boot_info.page_size)
 
+    return boot_info
+
 def cmd_erase(device):
     print("\nErasing device...")
     boot.erase(device) # must erase before we can write
@@ -129,7 +134,7 @@ def write_hexfile(device, hexfile):
 
 
         if app_crc != hex_crc:
-            print("Write FAILED! CRC mismatch: 0x{:06x} != 0x{:06x} "
+            print("Error: Write FAILED! CRC mismatch: 0x{:06x} != 0x{:06x} "
                   .format(app_crc, hex_crc), file=sys.stderr)
             exit(EXIT_CRC_ERROR)
         else:
@@ -185,7 +190,7 @@ if __name__ == "__main__":
         exit(EXIT_NO_ERROR)
 
     if len(devices) == 0:
-        print("Couldn't find device to program", file=sys.stderr)
+        print("Error: Couldn't find device to program", file=sys.stderr)
         exit(EXIT_OPEN_ERROR)
 
     if len(devices) > 1:
@@ -195,13 +200,21 @@ if __name__ == "__main__":
     try:
         device.open()
     except:
-        print("Couldn't open the device. Check that device is still connected "
-              " and that you have permission to write to it.")
+        print("Error: Couldn't open the device. Check that device is still connected "
+              " and that you have permission to write to it.", file=sys.stderr)
         exit(EXIT_OPEN_ERROR)
 
 
     # Print the info of the device we found
-    print_device_info(device)
+    boot_info = print_device_info(device)
+
+    if args.mcu and args.mcu.lower() != boot_info.mcu_string.lower():
+        print("Error: MCU mismatch expected '{}' but got '{}'".format(
+                args.mcu.lower(), boot_info.mcu_string.lower()
+            ),
+            file=sys.stderr
+        )
+        exit(EXIT_SELECT_ERROR)
 
     if args.erase:
         if not has_specific_device:
