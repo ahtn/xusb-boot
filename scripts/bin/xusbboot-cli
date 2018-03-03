@@ -6,17 +6,18 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import intelhex
 import argparse
-
-import time, math, sys
-import boot
+import time
+import math
+import sys
 import easyhid
+
+import xusbboot
 
 EXIT_NO_ERROR = 0
 EXIT_ARGUMENTS_ERROR = 1
 EXIT_OPEN_ERROR = 2
 EXIT_SELECT_ERROR = 3
 EXIT_CRC_ERROR = 5
-
 
 parser = argparse.ArgumentParser(description='Flashing script for xusb-boot bootloader')
 parser.add_argument('-f', dest='hex_file', type=str, action='store', default=None,
@@ -39,10 +40,10 @@ parser.add_argument('-p', dest='path', type=str, default=None, action='store',
                     ' device if it does not have a serial number. This value '
                     'is not static and may change if the device is reconnected')
 parser.add_argument('-v', '--version', action='version',
-        version='Version: {}.{}'.format(boot.VERSION_MAJOR, boot.VERSION_MINOR))
+        version='Version: {}.{}'.format(xusbboot.VERSION_MAJOR, xusbboot.VERSION_MINOR))
 
 
-class Progress:
+class Progress(object):
     def __init__(self, total=100, bar_size=40):
         self.bar_size = bar_size
         self.total = total
@@ -79,7 +80,7 @@ def print_device_info(device):
     if serial_str:
         print("Serial: ", serial_str)
 
-    boot_info = boot.get_boot_info(device)
+    boot_info = xusbboot.get_boot_info(device)
     print("USB port info", device.path)
     print("Bootloader Version: {}.{}".format(boot_info.version_major, boot_info.version_minor))
     print("MCU: ", boot_info.mcu_string)
@@ -90,16 +91,16 @@ def print_device_info(device):
 
 def cmd_erase(device):
     print("\nErasing device...")
-    boot.erase(device) # must erase before we can write
+    xusbboot.erase(device) # must erase before we can write
     print("Done.")
 
 def cmd_reset(device):
     print("\Reseting device...")
-    boot.erase(device) # must erase before we can write
+    xusbboot.erase(device) # must erase before we can write
     print("Done.")
 
 def write_hexfile(device, hexfile):
-    boot_info = boot.get_boot_info(device)
+    boot_info = xusbboot.get_boot_info(device)
     page_size = boot_info.page_size
     flash_size = boot_info.flash_size
     flash_end = boot_info.flash_size-1
@@ -110,27 +111,27 @@ def write_hexfile(device, hexfile):
         start = 0
         end = int(math.ceil(ihex.maxaddr() / page_size)) * page_size
         if end > flash_size:
-            raise boot.BootloaderException("Hex file to large for flash size. Got {}"
+            raise xusbboot.XUSBBootloaderException("Hex file to large for flash size. Got {}"
                     " maximum is {}".format(ihex.maxaddr(), flash_size))
 
         hex_data = ihex.tobinarray(0, flash_end)
-        hex_crc = boot.xmega_nvm_crc(hex_data)
+        hex_crc = xusbboot.crc.xmega_nvm_crc(hex_data)
 
         # Write the page region in the hex file and print a progress bar every
         # time we write a page
         print("Writing hex file '{}' ({} bytes) (CRC: 0x{:06x})".format(
             args.hex_file, end, hex_crc))
         prog = Progress(total=end, bar_size=50)
-        boot.erase(device) # must erase before we can write
+        xusbboot.erase(device) # must erase before we can write
         prog.start()
-        boot.write_start(device, start, end) # tell mcu the region to write
+        xusbboot.write_start(device, start, end) # tell mcu the region to write
         for i in range(start, end, page_size): # handle one page at a time
             data = bytearray(hex_data[i:i+page_size])
-            boot.write_page(device, data, page_size)
+            xusbboot.write_page(device, data, page_size)
             prog.update(i)
         prog.done()
 
-        app_crc, boot_crc = boot.crc(device)
+        app_crc, boot_crc = xusbboot.compute_crc(device)
 
 
         if app_crc != hex_crc:
@@ -140,7 +141,7 @@ def write_hexfile(device, hexfile):
         else:
             print("Write successful, CRC: 0x{:06x}".format(app_crc))
             print("Reseting mcu ...")
-            boot.reset(device)
+            xusbboot.reset(device)
             exit(EXIT_NO_ERROR)
 
 
@@ -164,10 +165,11 @@ if __name__ == "__main__":
     has_specific_device = vid or pid or args.path or args.serial
     if not (has_specific_device or args.listing or args.hex_file):
         parser.print_help()
+        exit(0)
 
     if vid == 0 and pid == 0:
-        vid = boot.DEFAULT_VID
-        pid = boot.DEFAULT_PID
+        vid = xusbboot.DEFAULT_VID
+        pid = xusbboot.DEFAULT_PID
 
 
     device = None
