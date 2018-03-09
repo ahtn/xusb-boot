@@ -72,104 +72,113 @@ write_application_page_fn:
 .section .spm_interface_table,"ax",@progbits
 
 
+#if BOOT_SECTION_SIZE <= 0x1000
+.MACRO		spm_jmp addr
+		rjmp \addr
+.ENDM
+#else
+.MACRO		spm_jmp addr
+		jmp \addr
+.ENDM
+#endif
 
 ; table pos 0
 .global erase_application_page
 erase_application_page:
-	rjmp	erase_application_page_fn
+	spm_jmp		erase_application_page_fn
 
 ; table pos 1
 .global write_application_page
 write_application_page:
-	rjmp	write_application_page_fn
+	spm_jmp	write_application_page_fn
 
 ; table pos 2
 .global SP_ReadCalibrationByte_fn
 SP_ReadCalibrationByte_fn:
-	rjmp	SP_ReadCalibrationByte
+	spm_jmp	SP_ReadCalibrationByte
 
 ; table pos 3
 .global SP_ReadFuseByte_fn
 SP_ReadFuseByte_fn:
-	rjmp	SP_ReadFuseByte
+	spm_jmp	SP_ReadFuseByte
 
 ; table pos 4
 .global SP_WriteLockBits_fn
 SP_WriteLockBits_fn:
-	rjmp	SP_WriteLockBits
+	spm_jmp	SP_WriteLockBits
 
 ; table pos 5
 .global SP_ReadLockBits_fn
 SP_ReadLockBits_fn:
-	rjmp	SP_ReadLockBits
+	spm_jmp	SP_ReadLockBits
 
 ; table pos 6
 .global SP_ReadUserSignatureByte_fn
 SP_ReadUserSignatureByte_fn:
-	rjmp	SP_ReadUserSignatureByte
+	spm_jmp	SP_ReadUserSignatureByte
 
 ; table pos 7
 .global SP_EraseUserSignatureRow_fn
 SP_EraseUserSignatureRow_fn:
-	rjmp	SP_EraseUserSignatureRow
+	spm_jmp	SP_EraseUserSignatureRow
 
 ; table pos 8
 .global SP_WriteUserSignatureRow_fn
 SP_WriteUserSignatureRow_fn:
-	rjmp	SP_WriteUserSignatureRow
+	spm_jmp	SP_WriteUserSignatureRow
 
 ; table pos 9
 .global SP_EraseApplicationPage_fn
 SP_EraseApplicationPage_fn:
-	rjmp	SP_EraseApplicationPage
+	spm_jmp	SP_EraseApplicationPage
 
 ; table pos 10
 .global SP_EraseWriteApplicationPage_fn
 SP_EraseWriteApplicationPage_fn:
-	rjmp	SP_EraseWriteApplicationPage
+	spm_jmp	SP_EraseWriteApplicationPage
 
 ; table pos 11
 .global SP_WriteApplicationPage_fn
 SP_WriteApplicationPage_fn:
-	rjmp	SP_WriteApplicationPage
+	spm_jmp	SP_WriteApplicationPage
 
 ; table pos 12
 .global SP_LoadFlashWord_fn
 SP_LoadFlashWord_fn:
-	rjmp	SP_LoadFlashWord
+	spm_jmp	SP_LoadFlashWord
 
 ; table pos 13
 .global SP_LoadFlashPage_fn
 SP_LoadFlashPage_fn:
-	rjmp	SP_LoadFlashPage
+	spm_jmp	SP_LoadFlashPage
 
 ; table pos 14
 .global SP_ReadFlashPage_fn
 SP_ReadFlashPage_fn:
-	rjmp	SP_ReadFlashPage
+	spm_jmp	SP_ReadFlashPage
 
 ; table pos 15
 .global SP_EraseFlashBuffer_fn
 SP_EraseFlashBuffer_fn:
-	rjmp	SP_EraseFlashBuffer
+	spm_jmp	SP_EraseFlashBuffer
 
 ; table pos 16
 .global SP_ApplicationCRC_fn
 SP_ApplicationCRC_fn:
-	rjmp	SP_ApplicationCRC
+	spm_jmp	SP_ApplicationCRC
 
 ; table pos 17
 .global SP_BootCRC_fn
 SP_BootCRC_fn:
-	rjmp	SP_BootCRC
+	spm_jmp	SP_BootCRC
 
 ; table pos 18
 .global SP_LockSPM_fn
 SP_LockSPM_fn:
-	rjmp	SP_LockSPM
+	spm_jmp	SP_LockSPM
 
 ; table pos 19
 .global SP_WaitForSPM_fn
 SP_WaitForSPM_fn:
-	rjmp	SP_WaitForSPM
+	spm_jmp	SP_WaitForSPM
 

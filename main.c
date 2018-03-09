@@ -71,13 +71,12 @@ int main(void) {
     // * the application flash is not programmed
     // * application section performs a software reset into bootloader
     if ( (has_vbus && ext_reset && !power_on_reset && !bootloader_reset)
-        || SP_ReadWord(0) == 0xFFFF
+        || SP_ReadWord(0x0000) == 0xFFFF
         || (software_reset && has_magic)
     ) {
         run_bootloader();
     }
 
-    // jump to the application code
-    void (*reset_vector)( void ) = 0x000000;
-    reset_vector();
+    // // jump to the application code
+    asm("jmp   0x0000");
 }

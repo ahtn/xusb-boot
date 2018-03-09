@@ -61,9 +61,21 @@ CFLAGS += -fno-jump-tables
 # we don't want to use interrupts in the bootloader, so poll the USB IRQ flags
 CFLAGS += -DUSE_USB_POLLING
 
-# Number of bytes to reserve for spm_interface vector table (need 2 bytes for
-# each entry to use `rjmp`)
-SPM_INTERFACE_TABLE_SIZE = 48
+# Number of bytes to reserve for spm_interface vector table.
+# Need 2 bytes for each entry to use `rjmp` (devices with 4kb bootloader)
+# Need 4 bytes for each entry to use `jmp` (devices with 8kb bootloader)
+
+include avr-makefile/avr-xmega.mk
+
+SPM_INTERFACE_TABLE_ENTRIES = 24
+ifeq ($(BOOTLOADER_SIZE), 0x1000)
+  JMP_SIZE = 2
+else ifeq ($(BOOTLOADER_SIZE), 0x2000)
+  JMP_SIZE = 4
+else
+  $(error "Unsupported bootloader size BOOTLOADER_SIZE=$(BOOTLOADER_SIZE)")
+endif
+SPM_INTERFACE_TABLE_SIZE = $(shell echo "$$(($(SPM_INTERFACE_TABLE_ENTRIES) * $(JMP_SIZE) ))")
 
 CFLAGS += $(INC_PATHS)
 
@@ -78,6 +90,7 @@ C_SRC += $(SRC_USB) \
 # List Assembler source files here.
 # NOTE: Use *.S for user written asm files. *.s is used for compiler generated
 ASM_SRC = \
+	init_vector.S \
 	sp_driver.S \
 	spm_interface.S \
 	main_pre_init.S \
@@ -107,9 +120,8 @@ LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 all: fuse hex
 
 include avr-makefile/avr.mk
-include avr-makefile/avr-xmega.mk
 include avr-makefile/avr-program.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
-build elf hex eep lss sym coff extcoff doxygen clean program-fuses \
+build elf hex eep lss sym coff extcoff doxygen clean \

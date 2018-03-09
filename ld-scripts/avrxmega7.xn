@@ -84,7 +84,11 @@ SECTIONS
   /* Internal text space or external memory.  */
   .text   :
   {
-    *(.vectors) /* NOTE: don't KEEP vector table, don't need interrupts */
+    /* TODO: find out how to remove vector table for atxmega128a4u. Some
+     * code in .init2 seems to rely on it. */
+    /* TODO/NOTE: don't KEEP vector table, don't need interrupts */
+    *(.vectors)
+    KEEP(*(.vectors))
     /* For data that needs to reside in the lower 64k of progmem.  */
      *(.progmem.gcc*)
     /* PR 13812: Placing the trampolines here gives a better chance
@@ -189,10 +193,6 @@ SECTIONS
     *(COMMON)
      PROVIDE (__bss_end = .) ;
   }  > data
-  .spm_interface_table :
-  {
-    KEEP(*(.spm_interface_table))
-  } > spm_interface_table
    __data_load_start = LOADADDR(.data);
    __data_load_end = __data_load_start + SIZEOF(.data);
   /* Global data not cleared after reset.  */

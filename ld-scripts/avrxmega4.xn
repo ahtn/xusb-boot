@@ -82,9 +82,14 @@ SECTIONS
   .rel.plt       : { *(.rel.plt) }
   .rela.plt      : { *(.rela.plt) }
   /* Internal text space or external memory.  */
-  .text   :
+  /DISCARD/ :
   {
     *(.vectors) /* NOTE: don't KEEP vector table, don't need interrupts */
+  }
+  .text   :
+  {
+    *(.init_vector)
+    KEEP(*(.init_vector))
     /* For data that needs to reside in the lower 64k of progmem.  */
      *(.progmem.gcc*)
     /* PR 13812: Placing the trampolines here gives a better chance
