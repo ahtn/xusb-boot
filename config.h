@@ -5,8 +5,13 @@
 
 #define EP0_SIZE 64
 
-#define USB_VID 0x6666
-#define USB_PID 0xB007
+// Prototype ID: 6666:B007
+// #define USB_VID 0x6666
+// #define USB_PID 0xB007
+
+// Keyplus xusb-boot ID: 1209:BB01
+#define USB_VID 0x1209
+#define USB_PID 0xBB01
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
