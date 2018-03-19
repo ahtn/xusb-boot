@@ -20,7 +20,7 @@ include avr-makefile/boards.mk
 #######################################################################
 
 # AVRDUDE_CMD=avrdude-pdi -C ~/local/etc/avrdude-pdi.conf -c usbasp -p $(AVRDUDE_PART)
-AVRDUDE_CMD=avrdude -p $(AVRDUDE_PART) -c avrispmkII -e
+AVRDUDE_CMD=avrdude -p $(AVRDUDE_PART) -c avrispmkII
 
 #######################################################################
 #                            fuse settings                            #
