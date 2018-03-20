@@ -12,6 +12,7 @@ import sys
 import easyhid
 
 import xusbboot
+import xusbboot.constants
 
 EXIT_NO_ERROR = 0
 EXIT_ARGUMENTS_ERROR = 1
@@ -167,21 +168,21 @@ if __name__ == "__main__":
         parser.print_help()
         exit(0)
 
-    if vid == 0 and pid == 0:
-        vid = xusbboot.DEFAULT_VID
-        pid = xusbboot.DEFAULT_PID
-
-
     device = None
     boot_info = None
 
     devices = easyhid.Enumeration().find(
-        vid = vid,
-        pid = pid,
         path = args.path,
         serial = args.serial
     )
 
+    # if a vid/pid wasn't provided, use the default values
+    if vid == 0 and pid == 0:
+        filtered_devices = []
+        for dev in devices:
+            if (dev.vendor_id, dev.product_id) in xusbboot.DEFAULT_USB_IDS:
+                filtered_devices.append(dev)
+        devices = filtered_devices
 
     if args.listing:
         for dev in devices:

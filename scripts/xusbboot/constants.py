@@ -8,8 +8,17 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 DEFAULT_MANUFACTUER = 'Xusb'
 DEFAULT_PRODUCT = 'Xusb-boot'
 
-DEFAULT_VID = 0x6666
-DEFAULT_PID = 0xB007
+PROTOTYPE_VID = 0x6666
+PROTOTYPE_PID = 0xB007
+
+DEFAULT_VID = 0x1209
+DEFAULT_PID = 0xBB01
+
+DEFAULT_USB_IDS = [
+    (PROTOTYPE_VID, PROTOTYPE_PID),
+    (DEFAULT_VID, DEFAULT_PID),
+]
+
 DEFAULT_INTERFACE = 0
 
 VERSION_MAJOR = 1
