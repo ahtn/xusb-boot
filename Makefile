@@ -13,7 +13,8 @@ FORMAT = ihex
 BOARD_DIR = boards
 BUILD_DIR = build
 
-include avr-makefile/boards.mk
+AVR_MKFILE_DIR = ./avr-makefile
+include $(AVR_MKFILE_DIR)/boards.mk
 
 #######################################################################
 #                         programmer options                          #
@@ -119,8 +120,8 @@ LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 
 all: fuse hex
 
-include avr-makefile/avr.mk
-include avr-makefile/avr-program.mk
+include $(AVR_MKFILE_DIR)/avr.mk
+include $(AVR_MKFILE_DIR)/avr-program.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
