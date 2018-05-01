@@ -17,7 +17,7 @@ except: # python2
 
 setup(
     name = 'xusbboot',
-    version = '0.0.1',
+    version = '0.0.2',
     description = "Python library for xmega xusb bootloader",
     url = "http://github.com/ahtn/xusb-boot",
     author = "jem",
