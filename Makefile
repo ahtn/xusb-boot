@@ -13,8 +13,21 @@ FORMAT = ihex
 BOARD_DIR = boards
 BUILD_DIR = build
 
-AVR_MKFILE_DIR = ./avr-makefile
-include $(AVR_MKFILE_DIR)/boards.mk
+# Update path
+AVR_MKFILE_PATH = ./avr-makefile
+SOURCE_PATH     = ./src
+XUSB_PATH       = ./src/xusb
+
+VPATH += $(SOURCE_PATH)
+VPATH += $(XUSB_PATH)
+
+INC_PATHS += -I$(SOURCE_PATH)
+INC_PATHS += -I$(XUSB_PATH)
+
+# Include sub makefiles
+include $(AVR_MKFILE_PATH)/boards.mk
+include $(XUSB_PATH)/makefile
+include $(XUSB_PATH)/xmega/makefile
 
 #######################################################################
 #                         programmer options                          #
@@ -46,15 +59,6 @@ LOCKBITS = $(LOCKBITS_RELEASE)
 #######################################################################
 #                           compiler setup                            #
 #######################################################################
-
-# Update path
-XMEGA_PATH=xusb
-VPATH += $(XMEGA_PATH)
-INC_PATHS += \
-
-# Include sub makefiles
-include $(XMEGA_PATH)/makefile
-include $(XMEGA_PATH)/xmega/makefile
 
  # workaround for bad code generation on avr-gcc on linux (version 6.2.0)
 CFLAGS += -fno-jump-tables
@@ -90,11 +94,15 @@ C_SRC += $(SRC_USB) \
 
 # List Assembler source files here.
 # NOTE: Use *.S for user written asm files. *.s is used for compiler generated
-ASM_SRC = \
-	init_vector.S \
+ASM_SRC += \
 	sp_driver.S \
 	spm_interface.S \
 	main_pre_init.S \
+
+ifeq ($(LD_SCRIPT), avrxmega4.xn)
+	ASM_SRC += init_vector.S
+endif
+
 
 # Optimization level, can be [0, 1, 2, 3, s].
 OPT = s
@@ -115,13 +123,19 @@ SPM_INTERFACE_TABLE_POS = $(shell python -c \
     "print(hex($(BOOT_SECTION_START)+$(BOOTLOADER_SIZE)-$(SPM_INTERFACE_TABLE_SIZE)))")
 LDFLAGS += -T $(LD_SCRIPT_DIR)/$(LD_SCRIPT)
 LDFLAGS += -Wl,--section-start=.text=$(BOOT_SECTION_START)
-LDFLAGS += -Wl,--section-start=.noinit=0x802400 # magic flag for bootloader entry
+
+ifeq ($(MCU), atxmega32a4u)
+  LDFLAGS += -Wl,--section-start=.noinit=0x802400 # magic flag for bootloader entry
+else
+  LDFLAGS += -Wl,--section-start=.noinit=0x802700 # magic flag for bootloader entry
+endif
+
 LDFLAGS += -Wl,--section-start=.spm_interface_table=$(SPM_INTERFACE_TABLE_POS)
 
 all: fuse hex
 
-include $(AVR_MKFILE_DIR)/avr.mk
-include $(AVR_MKFILE_DIR)/avr-program.mk
+include $(AVR_MKFILE_PATH)/avr.mk
+include $(AVR_MKFILE_PATH)/avr-program.mk
 
 # Listing of phony targets.
 .PHONY : all begin finish end sizebefore sizeafter gccversion \

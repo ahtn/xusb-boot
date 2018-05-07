@@ -14,7 +14,7 @@
 #define USB_PID 0xBB01
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 0
+#define VERSION_MINOR 1
 
 // When this value is defined, we enter the bootloader regardless of the check
 // pin. If a USB detection is not detected in `WATCH_DOG_PERIOD`, then it will

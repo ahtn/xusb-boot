@@ -3,22 +3,34 @@
 
 #pragma once
 
-#include <avr/io.h>
 #include <stdint.h>
+#include <avr/io.h>
+#include <util/delay.h>
 
+/// Magic value used to enter the bootloader
+#define BOOTLOADER_MAGIC 0x97e1e28e
+
+#if defined(__AVR_ATxmega32A4U__)
+// ATxmega32A4U uses a different address
+#define BOOTLOADER_FLAG_ADDRESS 0x802400
+#else
+/// Address where magic value is stored in SRAM
+#define BOOTLOADER_FLAG_ADDRESS 0x802700
+#endif
+
+/// Number of functions in the SPM interface table
 #define SPM_INTERFACE_TABLE_ENTRIES 24
 
+/// The entries in the jump table are larger for 8kB bootloaders
 #if BOOT_SECTION_SIZE <= 0x1000
 #define SPM_INTERFACE_TABLE_ENTRIE_SIZE 2
 #define SPM_FN_TABLE_SIZE (SPM_INTERFACE_TABLE_ENTRIES * SPM_INTERFACE_TABLE_ENTRIE_SIZE)
 #else
+/// The size of each jump call in the SPM table
 #define SPM_INTERFACE_TABLE_ENTRIE_SIZE 4
+/// The total size of the SPM table
 #define SPM_FN_TABLE_SIZE (SPM_INTERFACE_TABLE_ENTRIES * SPM_INTERFACE_TABLE_ENTRIE_SIZE)
 #endif
-
-
-// How to use the spm interface functions in C from the application section.
-// Example for ATxmega32a4u
 
 #define BYTE_TO_WORD_ADDR(x) ((x) / 2)
 #define SPM_FN_TABLE_BYTE_ADDR (BOOT_SECTION_END - (SPM_FN_TABLE_SIZE - 1))
@@ -249,3 +261,30 @@
 }
 
 #endif
+
+/// Reset the mcu without entering the bootloader
+static inline void xusb_boot_reset(void) {
+    // use xmega software reset functionality
+    asm volatile("cli\n\t"          // disable interrupts
+                "ldi r24, 0xD8\n\t" // value to write to CCP
+                "ldi r25, 0x01\n\t" // value to write to SWRST
+                "ldi r30, 0x78\n\t"  // base address of RST peripheral
+                "ldi r31, 0\n\t"
+                "out __CCP__, r24\n\t"
+                "std Z+1, r25\n\t"  // +1 is the offset of RST.CTRL
+                ::); // no clobber list because we don't return
+}
+
+/// Reset the mcu and enter the bootloader
+static inline void xusb_boot_jump(void) {
+    // Disconnect the pull-up on the D+ line, to make sure that the host
+    // sees that the device is disconnected before being reset.
+    USB.CTRLB &= ~USB_PULLRST_bm;
+    _delay_ms(20);
+
+    // Setup the magic address so that we enter the bootloader on reset
+    *((uint32_t*)BOOTLOADER_FLAG_ADDRESS) = BOOTLOADER_MAGIC;
+
+    xusb_boot_reset();
+}
+

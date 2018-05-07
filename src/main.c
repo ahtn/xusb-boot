@@ -25,7 +25,11 @@ uint32_t boot_magic __attribute__ ((section (".noinit")));
 // then it means that a reset occured while the bootloader was running.
 #define BOOTMAGIC_BOOTLOADER_RESET_FLAG (1 << 9)
 
-int main(void) {
+// This function is called in assembler code in init3 section
+//
+// NOTE: init3 run after stack is setup but before ram is setup. So only use
+// local variables here.
+void pre_main_boot_check(void) {
     const bool power_on_reset = RST.STATUS & RST_PORF_bm;
     const bool ext_reset = RST.STATUS & RST_EXTRF_bm;
     const bool software_reset = RST.STATUS & RST_SRF_bm;
@@ -36,10 +40,6 @@ int main(void) {
 #endif
     const bool has_magic = (boot_magic == BOOTLOADER_MAGIC);
     const bool bootloader_reset = (boot_magic == BOOTLOADER_MAGIC_BOOT_RESET);
-
-#ifdef ALPHA_SPLIT_V2
-    init_bus_switches();
-#endif
 
     // The flags in the RST.STATUS register are not cleared automatically
     // when the mcu is reset. They are only cleared on power on reset, or by
@@ -74,9 +74,22 @@ int main(void) {
         || SP_ReadWord(0x0000) == 0xFFFF
         || (software_reset && has_magic)
     ) {
-        run_bootloader();
+        // Run the bootloader
+        // Since this code is a part of section init3, the data and bss
+        // sections have not been setup yet, so we don't run the code now.
+        //
+        // Instead we wait for this function to fall through, and the
+        // code will continue executing at main
+    } else {
+        // jump to the application code
+        asm("jmp   0x0000");
     }
+}
 
-    // // jump to the application code
-    asm("jmp   0x0000");
+int main(void) {
+#ifdef ALPHA_SPLIT_V2
+    init_bus_switches();
+#endif
+
+    run_bootloader();
 }

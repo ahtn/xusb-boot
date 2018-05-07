@@ -99,7 +99,12 @@ twice.
 To enter the bootloader from software
 ```
 #define BOOTLOADER_MAGIC 0x97e1e28e
+
+#if defined(__AVR_ATxmega32a4u__)
 #define BOOTLOADER_FLAG_ADDRESS 0x802400
+#else
+#define BOOTLOADER_FLAG_ADDRESS 0x802700
+#endif
 
 void software_reset(void) {
     // use xmega software reset functionality
@@ -144,8 +149,9 @@ flash from the application section.  To use these functions include
 For the bootloader to work correctly, it needs to clear some of the flags
 in the RST.STATUS register. So to allow the application code to see these flags,
 it makes a copy of RST.STATUS register at the address
-`BOOTLOADER_FLAG_ADDRESS 0x802400`. Also, if the bootloader itself is reset
-while it is running, then `bit 0` at `0x802401` is set.
+`BOOTLOADER_FLAG_ADDRESS 0x802400/0x802700` (ATxmega32a4u uses `0x802400`,
+others mcu use `0x802700`). Also, if the bootloader itself is reset
+while it is running, then `bit 0` at `0x802401/0x802701` is set.
 The application code should still clear the RST.STATUS flags it uses as the
 bootloader does not clear all reset flags.
 

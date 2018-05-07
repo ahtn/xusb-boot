@@ -9,7 +9,11 @@
 #define HI8(X) (((X) >> 8) & 0xff)
 #define LO8(X) ((X) & 0xff)
 
+#ifdef __AVR_ATxmega32a4u__
 #define BOOTLOADER_MAGIC_ADDR 0x2400
+#else
+#define BOOTLOADER_MAGIC_ADDR 0x2700
+#endif
 
 #define SRAM_FILL_VALUE 0xCC
 
@@ -51,4 +55,6 @@ restore_magic:
 	st	-Z, r18
 	st	-Z, r17
 	st	-Z, r16
+
+	call	pre_main_boot_check
 
