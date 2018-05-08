@@ -193,6 +193,10 @@ SECTIONS
     *(COMMON)
      PROVIDE (__bss_end = .) ;
   }  > data
+  .spm_interface_table :
+  {
+    KEEP(*(.spm_interface_table))
+  } > spm_interface_table
    __data_load_start = LOADADDR(.data);
    __data_load_end = __data_load_start + SIZEOF(.data);
   /* Global data not cleared after reset.  */
